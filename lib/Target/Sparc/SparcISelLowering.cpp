@@ -1385,8 +1385,45 @@ SparcTargetLowering::SparcTargetLowering(TargetMachine &TM,
   addRegisterClass(MVT::f32, &SP::FPRegsRegClass);
   addRegisterClass(MVT::f64, &SP::DFPRegsRegClass);
   addRegisterClass(MVT::f128, &SP::QFPRegsRegClass);
-  if (Subtarget->is64Bit())
+  if (Subtarget->is64Bit()) {
     addRegisterClass(MVT::i64, &SP::I64RegsRegClass);
+  } else {
+    // On 32bit sparc, we define a double-register 32bit register
+    // class, as well. This is modeled in LLVM as a 2-vector of i32.
+    addRegisterClass(MVT::v2i32, &SP::IntPairRegClass);
+
+    // ...but almost all operations must be expanded, so set that as
+    // the default.
+    for (unsigned Op = 0; Op < ISD::BUILTIN_OP_END; ++Op) {
+      setOperationAction(Op, MVT::v2i32, Expand);
+    }
+    // Truncating/extending stores/loads are also not supported.
+    for (MVT VT : MVT::integer_vector_valuetypes()) {
+      setLoadExtAction(ISD::SEXTLOAD, VT, MVT::v2i32, Expand);
+      setLoadExtAction(ISD::ZEXTLOAD, VT, MVT::v2i32, Expand);
+      setLoadExtAction(ISD::EXTLOAD, VT, MVT::v2i32, Expand);
+
+      setLoadExtAction(ISD::SEXTLOAD, MVT::v2i32, VT, Expand);
+      setLoadExtAction(ISD::ZEXTLOAD, MVT::v2i32, VT, Expand);
+      setLoadExtAction(ISD::EXTLOAD, MVT::v2i32, VT, Expand);
+
+      setTruncStoreAction(VT, MVT::v2i32, Expand);
+      setTruncStoreAction(MVT::v2i32, VT, Expand);
+    }
+    // However, load and store *are* legal.
+    setOperationAction(ISD::LOAD, MVT::v2i32, Legal);
+    setOperationAction(ISD::STORE, MVT::v2i32, Legal);
+    setOperationAction(ISD::EXTRACT_VECTOR_ELT, MVT::v2i32, Legal);
+    setOperationAction(ISD::BUILD_VECTOR, MVT::v2i32, Legal);
+
+    // And we need to promote i64 loads/stores into vector load/store
+    setOperationAction(ISD::LOAD, MVT::i64, Custom);
+    setOperationAction(ISD::STORE, MVT::i64, Custom);
+
+    // Sadly, this doesn't work:
+    //    AddPromotedToType(ISD::LOAD, MVT::i64, MVT::v2i32);
+    //    AddPromotedToType(ISD::STORE, MVT::i64, MVT::v2i32);
+  }
 
   // Turn FP extload into load/fextend
   for (MVT VT : MVT::fp_valuetypes()) {
@@ -2612,6 +2649,17 @@ static SDValue LowerF128Load(SDValue Op, SelectionDAG &DAG)
   return DAG.getMergeValues(Ops, dl);
 }
 
+static SDValue LowerLOAD(SDValue Op, SelectionDAG &DAG)
+{
+  LoadSDNode *LdNode = cast<LoadSDNode>(Op.getNode());
+
+  EVT MemVT = LdNode->getMemoryVT();
+  if (MemVT == MVT::f128)
+    return LowerF128Load(Op, DAG);
+
+  return Op;
+}
+
 // Lower a f128 store into two f64 stores.
 static SDValue LowerF128Store(SDValue Op, SelectionDAG &DAG) {
   SDLoc dl(Op);
@@ -2654,6 +2702,29 @@ static SDValue LowerF128Store(SDValue Op, SelectionDAG &DAG) {
                              MachinePointerInfo(),
                              false, false, alignment);
   return DAG.getNode(ISD::TokenFactor, dl, MVT::Other, OutChains);
+}
+
+static SDValue LowerSTORE(SDValue Op, SelectionDAG &DAG)
+{
+  SDLoc dl(Op);
+  StoreSDNode *St = cast<StoreSDNode>(Op.getNode());
+
+  EVT MemVT = St->getMemoryVT();
+  if (MemVT == MVT::f128)
+    return LowerF128Store(Op, DAG);
+
+  if (MemVT == MVT::i64) {
+    // Custom handling for i64 stores: turn it into a bitcast and a
+    // v2i32 store.
+    SDValue Val = DAG.getNode(ISD::BITCAST, dl, MVT::v2i32, St->getValue());
+    SDValue Chain = DAG.getStore(
+        St->getChain(), dl, Val, St->getBasePtr(), St->getPointerInfo(),
+        St->isVolatile(), St->isNonTemporal(), St->getAlignment(),
+        St->getAAInfo());
+    return Chain;
+  }
+
+  return Op;
 }
 
 static SDValue LowerFNEGorFABS(SDValue Op, SelectionDAG &DAG, bool isV9) {
@@ -2794,7 +2865,6 @@ static SDValue LowerATOMIC_LOAD_STORE(SDValue Op, SelectionDAG &DAG) {
   return SDValue();
 }
 
-
 SDValue SparcTargetLowering::
 LowerOperation(SDValue Op, SelectionDAG &DAG) const {
 
@@ -2829,8 +2899,8 @@ LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::DYNAMIC_STACKALLOC: return LowerDYNAMIC_STACKALLOC(Op, DAG,
                                                                Subtarget);
 
-  case ISD::LOAD:               return LowerF128Load(Op, DAG);
-  case ISD::STORE:              return LowerF128Store(Op, DAG);
+  case ISD::LOAD:               return LowerLOAD(Op, DAG);
+  case ISD::STORE:              return LowerSTORE(Op, DAG);
   case ISD::FADD:               return LowerF128Op(Op, DAG,
                                        getLibcallName(RTLIB::ADD_F128), 2);
   case ISD::FSUB:               return LowerF128Op(Op, DAG,
@@ -3160,9 +3230,12 @@ SparcTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     case 'r':
-      return std::make_pair(0U, &SP::IntRegsRegClass);
+      if (VT == MVT::v2i32)
+        return std::make_pair(0U, &SP::IntPairRegClass);
+      else
+        return std::make_pair(0U, &SP::IntRegsRegClass);
     }
-  } else  if (!Constraint.empty() && Constraint.size() <= 5
+  } else if (!Constraint.empty() && Constraint.size() <= 5
               && Constraint[0] == '{' && *(Constraint.end()-1) == '}') {
     // constraint = '{r<d>}'
     // Remove the braces from around the name.
@@ -3238,5 +3311,24 @@ void SparcTargetLowering::ReplaceNodeResults(SDNode *N,
                                   getLibcallName(libCall),
                                   1));
     return;
+  case ISD::LOAD: {
+    LoadSDNode *Ld = cast<LoadSDNode>(N);
+    // Custom handling only for i64: turn i64 load into a v2i32 load,
+    // and a bitcast.
+    if (Ld->getValueType(0) != MVT::i64 || Ld->getMemoryVT() != MVT::i64)
+      return;
+
+    SDLoc dl(N);
+    SDValue LoadRes = DAG.getExtLoad(
+        Ld->getExtensionType(), dl, MVT::v2i32,
+        Ld->getChain(), Ld->getBasePtr(), Ld->getPointerInfo(),
+        MVT::v2i32, Ld->isVolatile(), Ld->isNonTemporal(),
+        Ld->isInvariant(), Ld->getAlignment(), Ld->getAAInfo());
+
+    SDValue Res = DAG.getNode(ISD::BITCAST, dl, MVT::i64, LoadRes);
+    Results.push_back(Res);
+    Results.push_back(LoadRes.getValue(1));
+    return;
+  }
   }
 }
