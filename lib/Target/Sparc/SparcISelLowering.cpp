@@ -2724,7 +2724,7 @@ static SDValue LowerSTORE(SDValue Op, SelectionDAG &DAG)
     return Chain;
   }
 
-  return Op;
+  return SDValue();
 }
 
 static SDValue LowerFNEGorFABS(SDValue Op, SelectionDAG &DAG, bool isV9) {
