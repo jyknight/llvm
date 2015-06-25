@@ -144,10 +144,17 @@ bool SparcDAGToDAGISel::SelectADDRrr(SDValue Addr, SDValue &R1, SDValue &R2) {
 }
 
 
+// Re-assemble i64 arguments split up in SelectionDAGBuilder's
+// visitInlineAsm / GetRegistersForValue functions.
+//
 // Note: This function was copied from, and is essentially identical
 // to ARMISelDAGToDAG::SelectInlineAsm. It is very unfortunate that
 // such hacking-up is necessary; a rethink of how inline asm operands
 // are handled may be in order to make doing this more sane.
+//
+// I'd love to be able to simply tell it that 'i64' inputs to asm need
+// to be allocated to the IntPair register type, rather than split
+// into two separate registers and re-assembled.
 SDNode *SparcDAGToDAGISel::SelectInlineAsm(SDNode *N){
   std::vector<SDValue> AsmNodeOperands;
   unsigned Flag, Kind;
