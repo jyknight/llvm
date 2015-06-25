@@ -2608,6 +2608,7 @@ public:
     C_Register,            // Constraint represents specific register(s).
     C_RegisterClass,       // Constraint represents any of register(s) in class.
     C_Memory,              // Memory constraint.
+    C_Matching,            // Special matching input constraint (e.g. '0')
     C_Other,               // Something else.
     C_Unknown              // Unsupported constraint.
   };
@@ -2646,10 +2647,6 @@ public:
 
     /// The ValueType for the operand value.
     MVT ConstraintVT;
-
-    /// Return true of this is an input operand that is a matching constraint
-    /// like "4".
-    bool isMatchingInputConstraint() const;
 
     /// If this is an input matching constraint, this method returns the output
     /// operand it matches.

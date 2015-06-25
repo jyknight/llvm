@@ -2159,6 +2159,12 @@ TargetLowering::getConstraintType(StringRef Constraint) const {
     }
   }
 
+  // A completely numeric string is a matching input constraint
+  if (S > 0 &&
+      std::all_of(Constraint.begin(), Constraint.end(),
+                  [](unsigned char c) { return c >= '0' && c <= '9'; }))
+    return C_Matching;
+
   if (S > 1 && Constraint[0] == '{' && Constraint[S-1] == '}') {
     if (S == 8 && Constraint.substr(1, 6) == "memory") // "{memory}"
       return C_Memory;
@@ -2291,13 +2297,6 @@ TargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *RI,
 
 //===----------------------------------------------------------------------===//
 // Constraint Selection.
-
-/// isMatchingInputConstraint - Return true of this is an input operand that is
-/// a matching constraint like "4".
-bool TargetLowering::AsmOperandInfo::isMatchingInputConstraint() const {
-  assert(!ConstraintCode.empty() && "No known constraint!");
-  return isdigit(static_cast<unsigned char>(ConstraintCode[0]));
-}
 
 /// getMatchedOperand - If this is an input matching constraint, this method
 /// returns the output operand it matches.
@@ -2505,6 +2504,7 @@ static unsigned getConstraintGenerality(TargetLowering::ConstraintType CT) {
   switch (CT) {
   case TargetLowering::C_Other:
   case TargetLowering::C_Unknown:
+  case TargetLowering::C_Matching:
     return 0;
   case TargetLowering::C_Register:
     return 1;

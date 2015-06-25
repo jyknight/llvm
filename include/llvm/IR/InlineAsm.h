@@ -304,11 +304,6 @@ public:
     return InputFlag | (Constraint << Constraints_ShiftAmount);
   }
 
-  static unsigned convertMemFlagWordToMatchingFlagWord(unsigned InputFlag) {
-    assert(isMemKind(InputFlag));
-    return InputFlag & ~(0x7fff << Constraints_ShiftAmount);
-  }
-
   static unsigned getKind(unsigned Flags) {
     return Flags & 7;
   }
