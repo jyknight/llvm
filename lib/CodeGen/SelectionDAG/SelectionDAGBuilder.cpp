@@ -5808,7 +5808,8 @@ static void GetRegistersForValue(SelectionDAG &DAG,
                                  const TargetLowering &TLI,
                                  SDLoc DL,
                                  SDISelAsmOperandInfo &OpInfo,
-                                 const std::string &BaseConstraintCode) {
+                                 const std::string &BaseConstraintCode,
+                                 bool AllocVirtOnly = false) {
   LLVMContext &Context = *DAG.getContext();
 
   MachineFunction &MF = DAG.getMachineFunction();
@@ -5851,7 +5852,8 @@ static void GetRegistersForValue(SelectionDAG &DAG,
 
   // If this is a constraint for a specific physical register, like {r17},
   // assign it now.
-  if (unsigned AssignedReg = PhysReg.first) {
+  unsigned AssignedReg = PhysReg.first;
+  if (!AllocVirtOnly && AssignedReg) {
     const TargetRegisterClass *RC = PhysReg.second;
     if (OpInfo.ConstraintVT == MVT::Other)
       ValueVT = *RC->vt_begin();
@@ -6096,7 +6098,7 @@ void SelectionDAGBuilder::visitInlineAsm(ImmutableCallSite CS) {
       // Matched regs get allocated normally, based on the constraint
       // code of the matched operand.
       const std::string &BaseConstraintCode = ConstraintOperands[OpInfo.getMatchedOperand()].ConstraintCode;
-      GetRegistersForValue(DAG, TLI, getCurSDLoc(), OpInfo, BaseConstraintCode);
+      GetRegistersForValue(DAG, TLI, getCurSDLoc(), OpInfo, BaseConstraintCode, true);
     }
   }
 
