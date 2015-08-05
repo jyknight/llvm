@@ -240,10 +240,10 @@ SparcTargetLowering::LowerReturn_32(SDValue Chain,
 
       SDValue Part0 = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, DL, MVT::i32,
                                   Arg,
-                                  DAG.getConstant(0, DL, getVectorIdxTy()));
+                                  DAG.getConstant(0, DL, getVectorIdxTy(DAG.getDataLayout())));
       SDValue Part1 = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, DL, MVT::i32,
                                   Arg,
-                                  DAG.getConstant(1, DL, getVectorIdxTy()));
+                                  DAG.getConstant(1, DL, getVectorIdxTy(DAG.getDataLayout())));
 
       Chain = DAG.getCopyToReg(Chain, DL, VA.getLocReg(), Part0, Flag);
       Flag = Chain.getValue(1);
@@ -863,10 +863,10 @@ SparcTargetLowering::LowerCall_32(TargetLowering::CallLoweringInfo &CLI,
 
       SDValue Part0 = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, MVT::i32,
                                   Arg,
-                                  DAG.getConstant(0, dl, getVectorIdxTy()));
+                                  DAG.getConstant(0, dl, getVectorIdxTy(DAG.getDataLayout())));
       SDValue Part1 = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, MVT::i32,
                                   Arg,
-                                  DAG.getConstant(1, dl, getVectorIdxTy()));
+                                  DAG.getConstant(1, dl, getVectorIdxTy(DAG.getDataLayout())));
 
       if (VA.isRegLoc()) {
         RegsToPass.push_back(std::make_pair(VA.getLocReg(), Part0));
@@ -3280,7 +3280,7 @@ SparcTargetLowering::getRegForInlineAsmConstraint(const TargetRegisterInfo *TRI,
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     case 'r':
-      if (VT == MVT::v2i32  || VT == MVT::i64)
+      if (VT == MVT::v2i32  || (!Subtarget->is64Bit() && VT == MVT::i64))
         return std::make_pair(0U, &SP::IntPairRegClass);
       else
         return std::make_pair(0U, &SP::IntRegsRegClass);
