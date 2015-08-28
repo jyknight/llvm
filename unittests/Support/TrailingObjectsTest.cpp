@@ -45,9 +45,10 @@ public:
   using TrailingObjects::getTrailingObjects;
 };
 
-// Here, there are two singular optional object types appended.
-// Note that it fails to compile without the alignment spec.
-class LLVM_ALIGNAS(8) Class2 final : protected TrailingObjects<Class2, double, short> {
+// Here, there are two singular optional object types appended.  Note
+// that the alignment of Class2 is automatically increased to account
+// for the alignment requirements of the trailing objects.
+class Class2 final : protected TrailingObjects<Class2, double, short> {
   friend TrailingObjects;
 
   bool HasShort, HasDouble;
