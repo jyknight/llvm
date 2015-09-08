@@ -525,6 +525,116 @@ for llvm users and not imposing a big burden on llvm developers:
   it is to drop it. That is not very user friendly and a bit more effort is
   expected, but no promises are made.
 
+LLVM-C API Compatibility
+------------------------
+
+While most of LLVM's library API is explicitly lacking any sort of cross-version
+compatibility/API-stability guarantees, the API exposed by the headers in
+``include/llvm-c/`` are covered by a somewhat enhanced compatibility policy.
+
+This policy is designed to make life easier for users calling into LLVM -- both
+those using the ``.h`` file from C or C++ code, and those doing a
+foreign-function-call from some other programming language.
+
+However, LLVM can not and does not promise absolute forward or backwards
+compatibility for the LLVM-C API, or even a n-release deprecation policy,
+because we do not want these compatibility rules to slow development on the
+underlying LLVM functionality.
+
+We also do not want to restrict the APIs covered by the LLVM-C API to only those
+which can be frozen without restricting future C++ development. That subset of
+APIs would be too limited to be useful for most use-cases.
+
+Therefore, this policy attempts to set some middle ground.
+
+TL;DR: You must not change the ABI/function signatures of existing
+functions. You may add new functions. You may remove functions without any prior
+deprecation period. You may change the semantics of existing functions.
+
+Here are some more detailed guidelines:
+
+* The ABI/signature of an existing function *must not* be modified. That
+  includes adding arguments, removing arguments, changing the types of
+  arguments, etc.  If a function needs a new signature, instead create a new
+  function with a new name.
+
+  For example: The EH personality function was moved from the ``landingpad``
+  instruction to the function itself. However, the existing API
+  ``LLVMBuildLandingPad`` must not be modified to remove the "PersFn"
+  argument. The alternative chosen was to use the PersFn argument to set the
+  function's landing pad. (The alternative of adding a new function
+  ``LLVMBuildLandingPad2`` would've been acceptable as well.)
+
+  Rationale: Callers from other languages will not necessarily get a compiler
+  error to notify them of such a signature change, and having a mismatched
+  argument list can result in very hard to diagnose errors. The cost of this
+  compatibility is epxected to be low, as it's typically easy to notice this
+  sort of change in the ``llvm-c/*.h`` files.
+
+* In contrast, the semantics of a function call *may* change incompatibly,
+  requiring callers to be modified. (Use your best judgment about whether the
+  behavior change makes sense, of course.)
+
+  For example: Prior to ``comdat`` being added as an IR feature, calling
+  ``LLVMSetLinkage(x, LLVMLinkOnceODRLinkage)`` would have implicitly created a
+  COMDAT section. Now, it will not: callers must explicitly create a comdat if
+  they want one. No attempt has been made to preserve the old semantic.
+
+  Rationale: It would be too difficult and burdensome to keep strict behavioral
+  compatibility in the C API with each such underlying behavioral change. It
+  would be both difficult to detect such changes, as well as difficult to
+  preserve the old behavior.
+
+* New functions exposing new LLVM functionality may be added to the LLVM-C API
+  "as needed". Functions for a part of the API already exposed should generally
+  be accepted with simple code review, and *may* be done at the same time as
+  adding the underlying LLVM functionality, if the developer so desires.
+  (e.g. exposing a LLVMBuild* function for a new IR feature would fall under
+  this category.)
+
+  Be a little more careful when exposing an as-yet-unexposed part of LLVM. It is
+  not necessarily a good idea for rapidly-changing or less-generally-useful
+  parts of LLVM's API to be exposed.
+
+  Rationale: The compatibility required makes the cost to LLVM developers of
+  having a C++ API exposed via the LLVM-C API relatively low, so the barrier for
+  exposing new functionality should be commensurately low. However, the
+  maintenance cost is still non-zero, so it still is not be appropriate to
+  expose absolutely everything.
+
+* Functions *should not* be removed from the LLVM-C API, but *may* be removed,
+  when required. For example, if the underlying LLVM functionality is being
+  removed, there is no realistic and useful way to keep an LLVM-C wrapper for
+  it.
+
+  In a similar vein, an older variant of a function should be kept when
+  introducing a new variant when possible.  However, if is not reasonably
+  possible to preserve the old function, it may be removed at the same time.
+
+  Marking a function "deprecated" for some time before its final removal is
+  appreciated, but is not a requirement.
+
+  For example: ``LLVMGetTargetMachineData`` wrap the C++
+  ``TargetMachine::getDataLayout()``. This C++ API was removed, and DataLayout
+  is now associated only with a Module. Thus, the LLVM-C API function should be
+  removed as well.
+
+  For example: ``LLVMIntTypeInContext`` effectively replaces ``LLVMIntType``,
+  but ``LLVMIntType`` has not been removed, because it still has a clear
+  meaning, and was easy to preserve.
+
+  Rationale: Preserving existing functions is helpful to clients, and thus
+  should be encouraged. But, it is not a valuable to keep a C API wrapper beyond
+  the lifetime of the underlying functionality, and the lifetime of the
+  underlying LLVM functionality will not be extended only for the benefit of the
+  C API.
+
+* Similar rules follow for ``enum`` elements: they must not be renumbered, but
+  may be added and, if necessary, removed. Be aware that removing an ``enum``
+  element can not prevent existing callers from continuing to pass it as input
+  to functions! Also, be careful not to cause the underlying integer type of the
+  ``enum`` to change (e.g. by adding a value that doesn't fit in a 32-bit int).
+
 .. _copyright-license-patents:
 
 Copyright, License, and Patents
