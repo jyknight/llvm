@@ -48,10 +48,6 @@ EnableIEEERndNear(
     cl::Hidden, cl::ZeroOrMore, cl::init(false),
     cl::desc("Generate non-chopped conversion from fp to int."));
 
-static cl::opt<bool> DisableHexagonMISched("disable-hexagon-misched",
-      cl::Hidden, cl::ZeroOrMore, cl::init(false),
-      cl::desc("Disable Hexagon MI Scheduling"));
-
 HexagonSubtarget &
 HexagonSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS) {
   // If the programmer has not specified a Hexagon version, default to -mv4.
@@ -95,9 +91,3 @@ HexagonSubtarget::HexagonSubtarget(const Triple &TT, StringRef CPU,
 
 // Pin the vtable to this file.
 void HexagonSubtarget::anchor() {}
-
-bool HexagonSubtarget::enableMachineScheduler() const {
-  if (DisableHexagonMISched.getNumOccurrences())
-    return !DisableHexagonMISched;
-  return true;
-}

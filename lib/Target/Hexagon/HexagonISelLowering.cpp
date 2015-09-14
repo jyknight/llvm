@@ -45,10 +45,6 @@ static cl::opt<bool>
 EmitJumpTables("hexagon-emit-jump-tables", cl::init(true), cl::Hidden,
   cl::desc("Control jump table emission on Hexagon target"));
 
-static cl::opt<bool> EnableHexSDNodeSched("enable-hexagon-sdnode-sched",
-  cl::Hidden, cl::ZeroOrMore, cl::init(false),
-  cl::desc("Enable Hexagon SDNode scheduling"));
-
 static cl::opt<bool> EnableFastMath("ffast-math",
   cl::Hidden, cl::ZeroOrMore, cl::init(false),
   cl::desc("Enable Fast Math processing"));
@@ -1287,11 +1283,6 @@ HexagonTargetLowering::HexagonTargetLowering(const TargetMachine &TM,
   setExceptionSelectorRegister(Hexagon::R1);
   setStackPointerRegisterToSaveRestore(HRI.getStackRegister());
 
-  if (EnableHexSDNodeSched)
-    setSchedulingPreference(Sched::VLIW);
-  else
-    setSchedulingPreference(Sched::Source);
-
   // Limits for inline expansion of memcpy/memmove
   MaxStoresPerMemcpy = MaxStoresPerMemcpyCL;
   MaxStoresPerMemcpyOptSize = MaxStoresPerMemcpyOptSizeCL;
@@ -2508,4 +2499,3 @@ bool HexagonTargetLowering::shouldExpandAtomicStoreInIR(StoreInst *SI) const {
   // Do not expand loads and stores that don't exceed 64 bits.
   return SI->getValueOperand()->getType()->getPrimitiveSizeInBits() > 64;
 }
-
