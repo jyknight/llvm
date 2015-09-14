@@ -295,6 +295,8 @@ public:
   const InstrItineraryData *getInstrItineraryData() const override {
     return &InstrItins;
   }
+
+  bool enableMachineScheduler() const override { return false; }
 };
 } // End llvm namespace
 

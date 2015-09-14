@@ -255,10 +255,6 @@ public:
 
   AMDGPU::IsaVersion getIsaVersion() const;
 
-  bool enableMachineScheduler() const override {
-    return true;
-  }
-
   void overrideSchedPolicy(MachineSchedPolicy &Policy,
                            MachineInstr *begin, MachineInstr *end,
                            unsigned NumRegionInstrs) const override;

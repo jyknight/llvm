@@ -120,6 +120,8 @@ public:
                        CodeModel::Model CM) const;
 
   bool isTargetELF() const { return TargetTriple.isOSBinFormatELF(); }
+
+  bool enableMachineScheduler() const override { return false; }
 };
 } // end namespace llvm
 

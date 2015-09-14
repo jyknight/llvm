@@ -35,7 +35,7 @@ bool TargetSubtargetInfo::enableAtomicExpand() const {
 }
 
 bool TargetSubtargetInfo::enableMachineScheduler() const {
-  return false;
+  return true;
 }
 
 bool TargetSubtargetInfo::enableJoinGlobalCopies() const {

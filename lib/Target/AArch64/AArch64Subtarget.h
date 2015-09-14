@@ -97,7 +97,6 @@ public:
     return &getInstrInfo()->getRegisterInfo();
   }
   const Triple &getTargetTriple() const { return TargetTriple; }
-  bool enableMachineScheduler() const override { return true; }
   bool enablePostRAScheduler() const override {
     return isCortexA53() || isCortexA57();
   }

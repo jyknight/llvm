@@ -60,8 +60,6 @@ public:
     return &TSInfo;
   }
 
-  bool enableMachineScheduler() const override;
-
   bool isV9() const { return IsV9; }
   bool isVIS() const { return IsVIS; }
   bool isVIS2() const { return IsVIS2; }

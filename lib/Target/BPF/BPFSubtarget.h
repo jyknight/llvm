@@ -58,6 +58,8 @@ public:
   const TargetRegisterInfo *getRegisterInfo() const override {
     return &InstrInfo.getRegisterInfo();
   }
+
+  bool enableMachineScheduler() const override { return false; }
 };
 } // End llvm namespace
 

@@ -497,9 +497,6 @@ public:
   /// compiler runtime or math libraries.
   bool hasSinCos() const;
 
-  /// Enable the MachineScheduler pass for all X86 subtargets.
-  bool enableMachineScheduler() const override { return true; }
-
   bool enableEarlyIfConversion() const override;
 
   /// Return the instruction itineraries based on the subtarget selection.

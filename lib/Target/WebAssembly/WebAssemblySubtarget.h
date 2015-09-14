@@ -68,7 +68,6 @@ public:
     return &getInstrInfo()->getRegisterInfo();
   }
   const Triple &getTargetTriple() const { return TargetTriple; }
-  bool enableMachineScheduler() const override;
   bool useAA() const override { return true; }
 
   // Predicates used by WebAssemblyInstrInfo.td.

@@ -44,5 +44,3 @@ WebAssemblySubtarget::WebAssemblySubtarget(const Triple &TT,
       CPUString(CPU), TargetTriple(TT), FrameLowering(),
       InstrInfo(initializeSubtargetDependencies(FS)), TSInfo(),
       TLInfo(TM, *this) {}
-
-bool WebAssemblySubtarget::enableMachineScheduler() const { return true; }
