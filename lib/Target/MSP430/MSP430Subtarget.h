@@ -63,8 +63,6 @@ public:
   const TargetSelectionDAGInfo *getSelectionDAGInfo() const override {
     return &TSInfo;
   }
-
-  bool enableMachineScheduler() const override { return false; }
 };
 } // End llvm namespace
 

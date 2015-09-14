@@ -41,8 +41,8 @@ entry:
 ; CHECK: mov.w #258, 6(r1)
 ; CHECK: mov.w #772, 4(r1)
 ; CHECK: mov.w #1286, 2(r1)
-; CHECK: mov.w #1800, 0(r1)
 ; CHECK: mov.w #1, r15
+; CHECK: mov.w #1800, 0(r1)
 ; CHECK: call #f_i16_i64_i16
   call void @f_i16_i64_i16(i16 1, i64 72623859790382856, i16 2)
 
