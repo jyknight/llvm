@@ -85,6 +85,9 @@ NVPTXRegisterInfo::getCalleeSavedRegs(const MachineFunction *) const {
 
 BitVector NVPTXRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
+
+  for (int envreg = NVPTX::ENVREG0; envreg <= NVPTX::ENVREG31; ++envreg)
+    Reserved.set(envreg);
   return Reserved;
 }
 

@@ -5,8 +5,8 @@ define void @foo(<2 x i32>* %a) {
 ; CHECK: ld.v2.u32
 ; CHECK-NEXT: ld.v2.u32
 ; CHECK-NEXT: ld.v2.u32
-; CHECK-NEXT: ld.v2.u32
 ; CHECK-NEXT: add.s32
+; CHECK-NEXT: ld.v2.u32
 ; CHECK-NEXT: add.s32
 ; CHECK-NEXT: add.s32
 ; CHECK-NEXT: add.s32

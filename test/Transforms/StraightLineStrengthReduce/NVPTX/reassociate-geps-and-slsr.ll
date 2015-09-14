@@ -29,8 +29,8 @@ target triple = "nvptx64-unknown-unknown"
 define void @slsr_after_reassociate_geps(float* %arr, i32 %i) {
 ; CHECK-LABEL: @slsr_after_reassociate_geps(
 ; PTX-LABEL: .visible .func slsr_after_reassociate_geps(
-; PTX: ld.param.u64 [[arr:%rd[0-9]+]], [slsr_after_reassociate_geps_param_0];
 ; PTX: ld.param.u32 [[i:%r[0-9]+]], [slsr_after_reassociate_geps_param_1];
+; PTX: ld.param.u64 [[arr:%rd[0-9]+]], [slsr_after_reassociate_geps_param_0];
   %i2 = shl nsw i32 %i, 1
   %i3 = mul nsw i32 %i, 3
   %i4 = shl nsw i32 %i, 2

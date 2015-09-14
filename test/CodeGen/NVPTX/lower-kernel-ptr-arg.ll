@@ -8,9 +8,9 @@ target triple = "nvptx64-nvidia-cuda"
 define void @kernel(float* %input, float* %output) {
 ; CHECK-LABEL: .visible .entry kernel(
 ; CHECK: cvta.to.global.u64
-; CHECK: cvta.to.global.u64
   %1 = load float, float* %input, align 4
 ; CHECK: ld.global.f32
+; CHECK: cvta.to.global.u64
   store float %1, float* %output, align 4
 ; CHECK: st.global.f32
   ret void
@@ -31,11 +31,11 @@ define void @kernel2(float addrspace(1)* %input, float addrspace(1)* %output) {
 define void @ptr_in_byval(%struct.S* byval %input, i32* %output) {
 ; CHECK-LABEL: .visible .entry ptr_in_byval(
 ; CHECK: cvta.to.global.u64
-; CHECK: cvta.to.global.u64
   %b_ptr = getelementptr inbounds %struct.S, %struct.S* %input, i64 0, i32 1
   %b = load i32*, i32** %b_ptr, align 4
   %v = load i32, i32* %b, align 4
 ; CHECK: ld.global.u32
+; CHECK: cvta.to.global.u64
   store i32 %v, i32* %output, align 4
 ; CHECK: st.global.u32
   ret void

@@ -17,7 +17,7 @@ entry:
 ; PTX-NOT: ld.param.u32 {{%r[0-9]+}}, [{{%rd[0-9]+}}]
 ; PTX: ld.param.u32 [[value:%r[0-9]+]], [{{%rd[0-9]+}}+4]
   store i32 %0, i32* %output, align 4
-; PTX-NEXT: st.global.u32 [{{%rd[0-9]+}}], [[value]]
+; PTX: st.global.u32 [{{%rd[0-9]+}}], [[value]]
   ret void
 }
 

@@ -101,8 +101,6 @@ public:
 
   NVPTXSubtarget &initializeSubtargetDependencies(StringRef CPU, StringRef FS);
   void ParseSubtargetFeatures(StringRef CPU, StringRef FS);
-
-  bool enableMachineScheduler() const override { return false; }
 };
 
 } // End llvm namespace
