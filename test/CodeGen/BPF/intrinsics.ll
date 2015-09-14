@@ -28,8 +28,8 @@ define i32 @ld_h(i8* %ctx, i8* %ctx2, i32 %foo) #0 {
   %5 = trunc i64 %4 to i32
   ret i32 %5
 ; CHECK-LABEL: ld_h:
-; CHECK: ldind_h r0, r6.data
 ; CHECK: ldabs_h r0, r6.data + 123
+; CHECK: ldind_h r0, r6.data
 }
 
 declare i64 @llvm.bpf.load.half(i8*, i64) #1
@@ -43,8 +43,8 @@ define i32 @ld_w(i8* %ctx, i8* %ctx2, i32 %foo) #0 {
   %5 = trunc i64 %4 to i32
   ret i32 %5
 ; CHECK-LABEL: ld_w:
-; CHECK: ldind_w r0, r6.data
 ; CHECK: ldabs_w r0, r6.data + 123
+; CHECK: ldind_w r0, r6.data
 }
 
 declare i64 @llvm.bpf.load.word(i8*, i64) #1
