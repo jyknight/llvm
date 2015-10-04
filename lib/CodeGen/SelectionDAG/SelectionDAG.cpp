@@ -2870,6 +2870,25 @@ SDValue SelectionDAG::getNode(unsigned Opcode, SDLoc DL, EVT VT) {
   return SDValue(N, 0);
 }
 
+// Bitcast of a constant to an integer vector can build the vector
+// with the right bits directly.
+SDValue ConstantBitcastToIntVector(const APInt& IntVal, EVT VT, SDLoc DL, SelectionDAG &DAG) {
+  EVT EltVT = VT.getScalarType();
+  unsigned EltSizeInBits = VT.getScalarType().getSizeInBits();
+  unsigned NumElts = VT.getSizeInBits() / EltSizeInBits;
+
+  SmallVector<SDValue, 8> EltParts;
+  for (unsigned i = 0; i < NumElts; ++i) {
+    EltParts.push_back(DAG.getConstant(IntVal.lshr(i * EltSizeInBits)
+                                       .trunc(EltSizeInBits), DL,
+                                       EltVT));
+  }
+  if (DAG.getDataLayout().isBigEndian())
+    std::reverse(EltParts.begin(), EltParts.end());
+
+  return DAG.getNode(ISD::BUILD_VECTOR, DL, VT, EltParts);
+}
+
 SDValue SelectionDAG::getNode(unsigned Opcode, SDLoc DL,
                               EVT VT, SDValue Operand) {
   // Constant fold unary operations with an integer constant operand. Even
@@ -2903,8 +2922,11 @@ SDValue SelectionDAG::getNode(unsigned Opcode, SDLoc DL,
         return getConstantFP(APFloat(APFloat::IEEEhalf, Val), DL, VT);
       if (VT == MVT::f32 && C->getValueType(0) == MVT::i32)
         return getConstantFP(APFloat(APFloat::IEEEsingle, Val), DL, VT);
-      else if (VT == MVT::f64 && C->getValueType(0) == MVT::i64)
+      if (VT == MVT::f64 && C->getValueType(0) == MVT::i64)
         return getConstantFP(APFloat(APFloat::IEEEdouble, Val), DL, VT);
+      if (VT.isVector() && VT.getScalarType().isInteger())
+        return ConstantBitcastToIntVector(Val, VT, DL, *this);
+
       break;
     case ISD::BSWAP:
       return getConstant(Val.byteSwap(), DL, VT, C->isTargetOpcode(),
@@ -2976,10 +2998,14 @@ SDValue SelectionDAG::getNode(unsigned Opcode, SDLoc DL,
     case ISD::BITCAST:
       if (VT == MVT::i16 && C->getValueType(0) == MVT::f16)
         return getConstant((uint16_t)V.bitcastToAPInt().getZExtValue(), DL, VT);
-      else if (VT == MVT::i32 && C->getValueType(0) == MVT::f32)
+      if (VT == MVT::i32 && C->getValueType(0) == MVT::f32)
         return getConstant((uint32_t)V.bitcastToAPInt().getZExtValue(), DL, VT);
-      else if (VT == MVT::i64 && C->getValueType(0) == MVT::f64)
-        return getConstant(V.bitcastToAPInt().getZExtValue(), DL, VT);
+      if (VT == MVT::i64 && C->getValueType(0) == MVT::f64)
+        return getConstant(APInt(64, V.bitcastToAPInt().getZExtValue()), DL, VT);
+      if (VT.isVector() && VT.getScalarType().isInteger()) {
+        APInt IntVal(VT.getSizeInBits(), V.bitcastToAPInt().getZExtValue());
+        return ConstantBitcastToIntVector(IntVal, VT, DL, *this);
+      }
       break;
     }
   }

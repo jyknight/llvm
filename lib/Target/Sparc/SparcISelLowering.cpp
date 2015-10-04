@@ -853,12 +853,6 @@ SparcTargetLowering::LowerCall_32(TargetLowering::CallLoweringInfo &CLI,
       if (VA.getLocVT() == MVT::f64) {
         // Move from the float value from float registers into the
         // integer registers.
-
-        // TODO: this conversion is done in two steps, because
-        // f64->i64 conversion is done efficiently, and i64->v2i32 is
-        // basically a no-op. But f64->v2i32 is NOT done efficiently
-        // for some reason.
-        Arg = DAG.getNode(ISD::BITCAST, dl, MVT::i64, Arg);
         Arg = DAG.getNode(ISD::BITCAST, dl, MVT::v2i32, Arg);
       }
 
