@@ -2873,7 +2873,20 @@ SDValue SelectionDAG::getNode(unsigned Opcode, SDLoc DL, EVT VT) {
 // Bitcast of a constant to an integer vector can build the vector
 // with the right bits directly.
 SDValue ConstantBitcastToIntVector(const APInt& IntVal, EVT VT, SDLoc DL, SelectionDAG &DAG) {
+#if 1
+  // Create a new constant with a 1-element vector of the right
+  // size. This will be split further if required.
+  unsigned SizeInBits = VT.getSizeInBits();
+  SDValue Vec = DAG.getConstant(IntVal, DL, EVT::getVectorVT(*DAG.getContext(), EVT::getIntegerVT(*DAG.getContext(), SizeInBits), 1));
+  return DAG.getNode(ISD::BITCAST, DL, VT, Vec);
+  //  return SDValue();
+#else
   EVT EltVT = VT.getScalarType();
+  // Don't introduce invalid types.
+  if (DAG.getTargetLoweringInfo().getTypeAction(*DAG.getContext(), VT) != TargetLowering::TypeLegal ||
+      DAG.getTargetLoweringInfo().getTypeAction(*DAG.getContext(), EltVT) != TargetLowering::TypeLegal)
+    return SDValue();
+
   unsigned EltSizeInBits = VT.getScalarType().getSizeInBits();
   unsigned NumElts = VT.getSizeInBits() / EltSizeInBits;
 
@@ -2887,6 +2900,7 @@ SDValue ConstantBitcastToIntVector(const APInt& IntVal, EVT VT, SDLoc DL, Select
     std::reverse(EltParts.begin(), EltParts.end());
 
   return DAG.getNode(ISD::BUILD_VECTOR, DL, VT, EltParts);
+#endif
 }
 
 SDValue SelectionDAG::getNode(unsigned Opcode, SDLoc DL,
@@ -2924,9 +2938,12 @@ SDValue SelectionDAG::getNode(unsigned Opcode, SDLoc DL,
         return getConstantFP(APFloat(APFloat::IEEEsingle, Val), DL, VT);
       if (VT == MVT::f64 && C->getValueType(0) == MVT::i64)
         return getConstantFP(APFloat(APFloat::IEEEdouble, Val), DL, VT);
-      if (VT.isVector() && VT.getScalarType().isInteger())
-        return ConstantBitcastToIntVector(Val, VT, DL, *this);
-
+      /*
+      if (VT.isVector() && VT.getScalarType().isInteger()) {
+        SDValue CastVal = ConstantBitcastToIntVector(Val, VT, DL, *this);
+        if (CastVal) return CastVal;
+      }
+      */
       break;
     case ISD::BSWAP:
       return getConstant(Val.byteSwap(), DL, VT, C->isTargetOpcode(),
@@ -3002,10 +3019,13 @@ SDValue SelectionDAG::getNode(unsigned Opcode, SDLoc DL,
         return getConstant((uint32_t)V.bitcastToAPInt().getZExtValue(), DL, VT);
       if (VT == MVT::i64 && C->getValueType(0) == MVT::f64)
         return getConstant(APInt(64, V.bitcastToAPInt().getZExtValue()), DL, VT);
+      /*
       if (VT.isVector() && VT.getScalarType().isInteger()) {
         APInt IntVal(VT.getSizeInBits(), V.bitcastToAPInt().getZExtValue());
-        return ConstantBitcastToIntVector(IntVal, VT, DL, *this);
+        SDValue Val = ConstantBitcastToIntVector(IntVal, VT, DL, *this);
+        if (Val) return Val;
       }
+      */
       break;
     }
   }

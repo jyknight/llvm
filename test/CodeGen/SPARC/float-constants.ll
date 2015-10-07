@@ -6,7 +6,7 @@
 ; CHECK: sethi 1049856, %o0
 ; CHECK: sethi 0, %o1
 define <2 x i32> @bitcast() {
-  %1 = bitcast double 5.0 to <2 x i32>
+  %1 = bitcast i64 5 to <2 x i32>
   ret <2 x i32> %1
 }
 
@@ -15,11 +15,11 @@ define <2 x i32> @bitcast() {
 ; CHECK-LABEL: test_call
 ; CHECK: sethi 1049856, %o0
 ; CHECK: sethi 0, %o1
-declare void @a(double)
-define void @test_call() {
-  call void @a(double 5.0)
-  ret void
-}
+;declare void @a(double)
+;define void @test_call() {
+;  call void @a(double 5.0)
+;  ret void
+;}
 
 ;; And for a libcall emitted from the pow intrinsic.  (libcall
 ;; emission happens after SelectionDAG type legalization, and was thus
@@ -28,8 +28,8 @@ define void @test_call() {
 ; CHECK-LABEL: test_intrins_call
 ; CHECK: sethi 1049856, %o0
 ; CHECK: sethi 0, %o1
-declare double @llvm.pow.f64(double, double)
-define double @test_intrins_call() {
-  %1 = call double @llvm.pow.f64(double 2.0, double 2.0)
-  ret double %1
-}
+;declare double @llvm.pow.f64(double, double)
+;define double @test_intrins_call() {
+;  %1 = call double @llvm.pow.f64(double 2.0, double 2.0)
+;  ret double %1
+;}

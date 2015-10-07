@@ -2975,12 +2975,14 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
 
   SDNode *ResNode = SelectCode(Node);
 
+#if 0
   DEBUG(dbgs() << "=> ";
         if (ResNode == nullptr || ResNode == Node)
           Node->dump(CurDAG);
         else
           ResNode->dump(CurDAG);
         dbgs() << '\n');
+#endif
 
   return ResNode;
 }
