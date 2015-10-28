@@ -60,9 +60,15 @@ define i64 @test_hfa_ignores_gprs([7 x float], [2 x float] %in, i64, i64 %res) {
 
 ; [2 x float] should not be promoted to double by the Darwin varargs handling,
 ; but should go in an 8-byte aligned slot.
+
+;; FIXME: What is this actually supposed to be checking? It's clearly
+;; okay for the stores to be combined, and they now are, so that's an
+;; improvement...but was the test asserting that that shouldn't
+;; happen?
+
 define void @test_varargs_stackalign() {
 ; CHECK-LABEL: test_varargs_stackalign:
-; CHECK-DARWINPCS: stp {{w[0-9]+}}, {{w[0-9]+}}, [sp, #16]
+; CHECK-DARWINPCS: str {{x[0-9]+}}, [sp, #16]
 
   call void(...) @callee([3 x float] undef, [2 x float] [float 1.0, float 2.0])
   ret void

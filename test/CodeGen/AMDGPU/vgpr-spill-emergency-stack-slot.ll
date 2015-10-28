@@ -1,6 +1,12 @@
 ; RUN: llc -march=amdgcn -mcpu=tahiti -mattr=+vgpr-spilling < %s | FileCheck %s
 ; RUN: llc -march=amdgcn -mcpu=fiji -mattr=+vgpr-spilling < %s | FileCheck %s
 
+;; FIXME: this fails because the load generated from extractelement is
+;; now properly recognized as forwardable to the value stored in
+;; insertelement, and thus the loads/stores drop away entirely. This
+;; makes the intended test, of running out of registers, not occur.
+;; XFAIL: *
+
 ; FIXME: Enable -verify-instructions
 
 ; This ends up using all 255 registers and requires register

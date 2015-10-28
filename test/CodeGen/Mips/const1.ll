@@ -21,11 +21,11 @@ entry:
 ; CHECK:	lw	${{[0-9]+}}, $CPI0_1
 ; CHECK: 	lw	${{[0-9]+}}, $CPI0_2
 ; CHECK: $CPI0_0:
-; CHECK:	.4byte	3735943886
-; CHECK: $CPI0_1:
 ; CHECK:	.4byte	4207861421
-; CHECK: $CPI0_2:
+; CHECK: $CPI0_1:
 ; CHECK:	.4byte	262991277
+; CHECK: $CPI0_2:
+; CHECK:	.4byte	3735943886
 }
 
 attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="true" }

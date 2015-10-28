@@ -31,12 +31,12 @@ define i32 @ebpf_filter(%struct.__sk_buff* nocapture readnone %ebpf_packet) #0 s
 ; CHECK: stb	-5(r10), r1
   store i8 8, i8* %4, align 1
   %5 = getelementptr inbounds %struct.routing_key_2, %struct.routing_key_2* %key, i64 0, i32 0, i64 4
+; CHECK: mov	r1, 10
+; CHECK: stb	-3(r10), r1
 ; CHECK: mov	r1, 9
 ; CHECK: stb	-4(r10), r1
   store i8 9, i8* %5, align 1
   %6 = getelementptr inbounds %struct.routing_key_2, %struct.routing_key_2* %key, i64 0, i32 0, i64 5
-; CHECK: mov	r1, 10
-; CHECK: stb	-3(r10), r1
   store i8 10, i8* %6, align 1
   %7 = getelementptr inbounds %struct.routing_key_2, %struct.routing_key_2* %key, i64 1, i32 0, i64 0
 ; CHECK: mov	r1, r10
@@ -45,6 +45,7 @@ define i32 @ebpf_filter(%struct.__sk_buff* nocapture readnone %ebpf_packet) #0 s
 ; CHECK: sth	6(r1), r2
 ; CHECK: sth	4(r1), r2
 ; CHECK: sth	2(r1), r2
+; CHECK: sth	26(r10), r2
 ; CHECK: sth	24(r10), r2
 ; CHECK: sth	22(r10), r2
 ; CHECK: sth	20(r10), r2
@@ -56,7 +57,6 @@ define i32 @ebpf_filter(%struct.__sk_buff* nocapture readnone %ebpf_packet) #0 s
 ; CHECK: sth	8(r10), r2
 ; CHECK: sth	6(r10), r2
 ; CHECK: sth	-2(r10), r2
-; CHECK: sth	26(r10), r2
   call void @llvm.memset.p0i8.i64(i8* %7, i8 0, i64 30, i32 1, i1 false)
   %8 = call i32 (%struct.bpf_map_def*, %struct.routing_key_2*, ...) bitcast (i32 (...)* @bpf_map_lookup_elem to i32 (%struct.bpf_map_def*, %struct.routing_key_2*, ...)*)(%struct.bpf_map_def* nonnull @routing, %struct.routing_key_2* nonnull %key) #3
   ret i32 undef

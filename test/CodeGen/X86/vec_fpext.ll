@@ -32,9 +32,9 @@ define void @fpext_frommem8(<8 x float>* %in, <8 x double>* %out) {
 ; AVX-LABEL: fpext_frommem8:
 entry:
 ; CHECK: cvtps2pd (%{{.+}}), %xmm{{[0-9]+}}
-; CHECK: cvtps2pd 8(%{{.+}}), %xmm{{[0-9]+}}
 ; CHECK: cvtps2pd 16(%{{.+}}), %xmm{{[0-9]+}}
 ; CHECK: cvtps2pd 24(%{{.+}}), %xmm{{[0-9]+}}
+; CHECK: cvtps2pd 8(%{{.+}}), %xmm{{[0-9]+}}
 ; AVX: vcvtps2pd 16(%{{.+}}), %ymm{{[0-9]+}}
 ; AVX: vcvtps2pd (%{{.+}}), %ymm{{[0-9]+}}
   %0 = load <8 x float>, <8 x float>* %in

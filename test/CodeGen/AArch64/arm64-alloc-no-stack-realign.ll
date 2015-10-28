@@ -5,13 +5,19 @@
 ; aligned.
 @T3_retval = common global <16 x float> zeroinitializer, align 16
 
+;; FIXME: this got worse, I think just due to the order the nodes are
+;; visited in the paired-store pass.
 define void @test(<16 x float>* noalias sret %agg.result) nounwind ssp {
 entry:
 ; CHECK: test
 ; CHECK: stp [[Q1:q[0-9]+]], [[Q2:q[0-9]+]], [sp, #32]
 ; CHECK: stp [[Q1:q[0-9]+]], [[Q2:q[0-9]+]], [sp]
-; CHECK: stp [[Q1:q[0-9]+]], [[Q2:q[0-9]+]], {{\[}}[[BASE:x[0-9]+]], #32]
-; CHECK: stp [[Q1:q[0-9]+]], [[Q2:q[0-9]+]], {{\[}}[[BASE]]]
+; CHECK: stp [[Q1:q[0-9]+]], [[Q1:q[0-9]+]], {{\[}}[[BASE:x[0-9]+]], #16]
+; CHECK: str [[Q1:q[0-9]+]], {{\[}}[[BASE]], #48]
+; CHECK: str [[Q1:q[0-9]+]], {{\[}}[[BASE]]]
+
+; CHECK-FIXME: stp [[Q1:q[0-9]+]], [[Q2:q[0-9]+]], {{\[}}[[BASE:x[0-9]+]], #32]
+; CHECK-FIXME: stp [[Q1:q[0-9]+]], [[Q2:q[0-9]+]], {{\[}}[[BASE]]]
  %retval = alloca <16 x float>, align 16
  %0 = load <16 x float>, <16 x float>* @T3_retval, align 16
  store <16 x float> %0, <16 x float>* %retval

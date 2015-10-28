@@ -1601,11 +1601,9 @@ SDValue DAGCombiner::visitTokenFactor(SDNode *N) {
       Result = DAG.getNode(ISD::TokenFactor, SDLoc(N), MVT::Other, Ops);
     }
 
-    // Add users to worklist if AA is enabled, since it may introduce
-    // a lot of new chained token factors while removing memory deps.
-    bool UseAA = CombinerAA.getNumOccurrences() > 0 ? CombinerAA
-      : DAG.getSubtarget().useAA();
-    return CombineTo(N, Result, UseAA /*add to worklist*/);
+    // Add users to worklist, since we may introduce a lot of new
+    // chained token factors while removing memory deps.
+    return CombineTo(N, Result, true /*add to worklist*/);
   }
 
   return Result;
@@ -9902,11 +9900,22 @@ SDValue DAGCombiner::visitLOAD(SDNode *N) {
   // TODO: Handle store large -> read small portion.
   // TODO: Handle TRUNCSTORE/LOADEXT
   if (ISD::isNormalLoad(N) && !LD->isVolatile()) {
-    if (ISD::isNON_TRUNCStore(Chain.getNode())) {
+    // Either a direct store, or a store off of a TokenFactor can be
+    // forwarded.
+    if (Chain->getOpcode() == ISD::TokenFactor) {
+      for (const SDValue &ChainOp : Chain->op_values()) {
+        if (ISD::isNON_TRUNCStore(ChainOp.getNode())) {
+          StoreSDNode *PrevST = cast<StoreSDNode>(ChainOp);
+          if (PrevST->getBasePtr() == Ptr &&
+              PrevST->getValue().getValueType() == N->getValueType(0))
+            return CombineTo(N, PrevST->getOperand(1), Chain);
+        }
+      }
+    } else if (ISD::isNON_TRUNCStore(Chain.getNode())) {
       StoreSDNode *PrevST = cast<StoreSDNode>(Chain);
       if (PrevST->getBasePtr() == Ptr &&
           PrevST->getValue().getValueType() == N->getValueType(0))
-      return CombineTo(N, Chain.getOperand(1), Chain);
+      return CombineTo(N, PrevST->getOperand(1), Chain);
     }
   }
 
@@ -9927,14 +9936,7 @@ SDValue DAGCombiner::visitLOAD(SDNode *N) {
     }
   }
 
-  bool UseAA = CombinerAA.getNumOccurrences() > 0 ? CombinerAA
-                                                  : DAG.getSubtarget().useAA();
-#ifndef NDEBUG
-  if (CombinerAAOnlyFunc.getNumOccurrences() &&
-      CombinerAAOnlyFunc != DAG.getMachineFunction().getName())
-    UseAA = false;
-#endif
-  if (UseAA && LD->isUnindexed()) {
+  if (LD->isUnindexed()) {
     // Walk up chain skipping non-aliasing memory nodes.
     SDValue BetterChain = FindBetterChain(N, Chain);
 
@@ -11117,7 +11119,7 @@ bool DAGCombiner::MergeStoresOfConstantsOrVecElts(
 
   // Replace the last store with the new store
   CombineTo(LatestOp, NewStore);
-  // Erase all other stores.
+  // Erase all other stores, and move uses of their chain to the new store.
   for (unsigned i = 0; i < NumStores; ++i) {
     if (StoreNodes[i].MemNode == LatestOp)
       continue;
@@ -11133,7 +11135,7 @@ bool DAGCombiner::MergeStoresOfConstantsOrVecElts(
     // get CSEed and the net result is that X is now a use of St.
     // Since we know that St is redundant, just iterate.
     while (!St->use_empty())
-      DAG.ReplaceAllUsesWith(SDValue(St, 0), St->getChain());
+      DAG.ReplaceAllUsesWith(SDValue(St, 0), NewStore);
     deleteAndRecombine(St);
   }
 
@@ -11155,103 +11157,30 @@ void DAGCombiner::getStoreMergeAndAliasCandidates(
   if (BasePtr.Base.getOpcode() == ISD::UNDEF)
     return;
 
-  // Walk up the chain and look for nodes with offsets from the same
-  // base pointer. Stop when reaching an instruction with a different kind
-  // or instruction which has a different base pointer.
   EVT MemVT = St->getMemoryVT();
   unsigned Seq = 0;
-  StoreSDNode *Index = St;
 
+  // Look at other users of the same chain. Stores attached to the
+  // same chain do not alias. (All neighboring non-aliasing stores
+  // have been canonicalized to be attached to the same chain already
+  // by findBetterNeighborChains)
 
-  bool UseAA = CombinerAA.getNumOccurrences() > 0 ? CombinerAA
-                                                  : DAG.getSubtarget().useAA();
-
-  if (UseAA) {
-    // Look at other users of the same chain. Stores on the same chain do not
-    // alias. If combiner-aa is enabled, non-aliasing stores are canonicalized
-    // to be on the same chain, so don't bother looking at adjacent chains.
-
-    SDValue Chain = St->getChain();
-    for (auto I = Chain->use_begin(), E = Chain->use_end(); I != E; ++I) {
-      if (StoreSDNode *OtherST = dyn_cast<StoreSDNode>(*I)) {
-        if (I.getOperandNo() != 0)
-          continue;
-
-        if (OtherST->isVolatile() || OtherST->isIndexed())
-          continue;
-
-        if (OtherST->getMemoryVT() != MemVT)
-          continue;
-
-        BaseIndexOffset Ptr = BaseIndexOffset::match(OtherST->getBasePtr());
-
-        if (Ptr.equalBaseIndex(BasePtr))
-          StoreNodes.push_back(MemOpLink(OtherST, Ptr.Offset, Seq++));
-      }
-    }
-
-    return;
-  }
-
-  while (Index) {
-    // If the chain has more than one use, then we can't reorder the mem ops.
-    if (Index != St && !SDValue(Index, 0)->hasOneUse())
-      break;
-
-    // Find the base pointer and offset for this memory node.
-    BaseIndexOffset Ptr = BaseIndexOffset::match(Index->getBasePtr());
-
-    // Check that the base pointer is the same as the original one.
-    if (!Ptr.equalBaseIndex(BasePtr))
-      break;
-
-    // The memory operands must not be volatile.
-    if (Index->isVolatile() || Index->isIndexed())
-      break;
-
-    // No truncation.
-    if (StoreSDNode *St = dyn_cast<StoreSDNode>(Index))
-      if (St->isTruncatingStore())
-        break;
-
-    // The stored memory type must be the same.
-    if (Index->getMemoryVT() != MemVT)
-      break;
-
-    // We do not allow under-aligned stores in order to prevent
-    // overriding stores. NOTE: this is a bad hack. Alignment SHOULD
-    // be irrelevant here; what MATTERS is that we not move memory
-    // operations that potentially overlap past each-other.
-    if (Index->getAlignment() < MemVT.getStoreSize())
-      break;
-
-    // We found a potential memory operand to merge.
-    StoreNodes.push_back(MemOpLink(Index, Ptr.Offset, Seq++));
-
-    // Find the next memory operand in the chain. If the next operand in the
-    // chain is a store then move up and continue the scan with the next
-    // memory operand. If the next operand is a load save it and use alias
-    // information to check if it interferes with anything.
-    SDNode *NextInChain = Index->getChain().getNode();
-    while (1) {
-      if (StoreSDNode *STn = dyn_cast<StoreSDNode>(NextInChain)) {
-        // We found a store node. Use it for the next iteration.
-        Index = STn;
-        break;
-      } else if (LoadSDNode *Ldn = dyn_cast<LoadSDNode>(NextInChain)) {
-        if (Ldn->isVolatile()) {
-          Index = nullptr;
-          break;
-        }
-
-        // Save the load node for later. Continue the scan.
-        AliasLoadNodes.push_back(Ldn);
-        NextInChain = Ldn->getChain().getNode();
+  SDValue Chain = St->getChain();
+  for (auto I = Chain->use_begin(), E = Chain->use_end(); I != E; ++I) {
+    if (StoreSDNode *OtherST = dyn_cast<StoreSDNode>(*I)) {
+      if (I.getOperandNo() != 0)
         continue;
-      } else {
-        Index = nullptr;
-        break;
-      }
+
+      if (OtherST->isVolatile() || OtherST->isIndexed())
+        continue;
+
+      if (OtherST->getMemoryVT() != MemVT)
+        continue;
+
+      BaseIndexOffset Ptr = BaseIndexOffset::match(OtherST->getBasePtr());
+
+      if (Ptr.equalBaseIndex(BasePtr))
+        StoreNodes.push_back(MemOpLink(OtherST, Ptr.Offset, Seq++));
     }
   }
 }
@@ -11290,11 +11219,6 @@ bool DAGCombiner::MergeConsecutiveStores(StoreSDNode* St) {
   if (MemVT.isVector() && IsLoadSrc)
     return false;
 
-  // Only look at ends of store sequences.
-  SDValue Chain = SDValue(St, 0);
-  if (Chain->hasOneUse() && Chain->use_begin()->getOpcode() == ISD::STORE)
-    return false;
-
   // Save the LoadSDNodes that we find in the chain.
   // We need to make sure that these nodes do not interfere with
   // any of the store nodes.
@@ -11310,12 +11234,7 @@ bool DAGCombiner::MergeConsecutiveStores(StoreSDNode* St) {
     return false;
 
   // Sort the memory operands according to their distance from the
-  // base pointer.  As a secondary criteria: make sure stores coming
-  // later in the code come first in the list. This is important for
-  // the non-UseAA case, because we're merging stores into the FINAL
-  // store along a chain which potentially contains aliasing stores.
-  // Thus, if there are multiple stores to the same address, the last
-  // one can be considered for merging but not the others.
+  // base pointer.
   std::sort(StoreNodes.begin(), StoreNodes.end(),
             [](MemOpLink LHS, MemOpLink RHS) {
     return LHS.OffsetFromBase < RHS.OffsetFromBase ||
@@ -11649,7 +11568,7 @@ bool DAGCombiner::MergeConsecutiveStores(StoreSDNode* St) {
     if (StoreNodes[i].MemNode == LatestOp)
       continue;
     StoreSDNode *St = cast<StoreSDNode>(StoreNodes[i].MemNode);
-    DAG.ReplaceAllUsesOfValueWith(SDValue(St, 0), St->getChain());
+    DAG.ReplaceAllUsesOfValueWith(SDValue(St, 0), NewStore);
     deleteAndRecombine(St);
   }
 
@@ -11811,19 +11730,7 @@ SDValue DAGCombiner::visitSTORE(SDNode *N) {
   if (SDValue NewST = TransformFPLoadStorePair(N))
     return NewST;
 
-  bool UseAA = CombinerAA.getNumOccurrences() > 0 ? CombinerAA
-                                                  : DAG.getSubtarget().useAA();
-#ifndef NDEBUG
-  if (CombinerAAOnlyFunc.getNumOccurrences() &&
-      CombinerAAOnlyFunc != DAG.getMachineFunction().getName())
-    UseAA = false;
-#endif
-  if (UseAA && ST->isUnindexed()) {
-    // FIXME: We should do this even without AA enabled. AA will just allow
-    // FindBetterChain to work in more situations. The problem with this is that
-    // any combine that expects memory operations to be on consecutive chains
-    // first needs to be updated to look for users of the same chain.
-
+  if (ST->isUnindexed()) {
     // Walk up chain skipping non-aliasing memory nodes, on this store and any
     // adjacent stores.
     if (findBetterNeighborChains(ST)) {
@@ -11858,8 +11765,13 @@ SDValue DAGCombiner::visitSTORE(SDNode *N) {
     if (SimplifyDemandedBits(Value,
                         APInt::getLowBitsSet(
                           Value.getValueType().getScalarType().getSizeInBits(),
-                          ST->getMemoryVT().getScalarType().getSizeInBits())))
+                          ST->getMemoryVT().getScalarType().getSizeInBits()))) {
+      // Re-visit the store if anything changed; SimplifyDemandedBits
+      // will add Value's node back to the worklist if necessary, but
+      // we also need to re-visit the Store node itself.
+      AddToWorklist(N);
       return SDValue(N, 0);
+    }
   }
 
   // If this is a load followed by a store to the same location, then the store
@@ -14646,6 +14558,18 @@ SDValue DAGCombiner::FindBetterChain(SDNode *N, SDValue OldChain) {
   return DAG.getNode(ISD::TokenFactor, SDLoc(N), MVT::Other, Aliases);
 }
 
+// This function tries to collect a bunch of potentially interesting
+// nodes to improve the chains of, all at once. This might seem
+// redundant, as this function gets called when visiting every store
+// node, so why not let the work be done on each store as it's visited?
+//
+// I believe this is mainly important because MergeConsecutiveStores
+// is unable to deal with merging stores of different sizes, so unless
+// we improve the chains of all the potential candidates up-front
+// before running MergeConsecutiveStores, it might only see some of
+// the nodes that will eventually be candidates, and then not be able
+// to go from a partially-merged state to the desired final
+// fully-merged state.
 bool DAGCombiner::findBetterNeighborChains(StoreSDNode* St) {
   // This holds the base pointer, index, and the offset in bytes from the base
   // pointer.
@@ -14681,10 +14605,8 @@ bool DAGCombiner::findBetterNeighborChains(StoreSDNode* St) {
     if (!Ptr.equalBaseIndex(BasePtr))
       break;
 
-    // Find the next memory operand in the chain. If the next operand in the
-    // chain is a store then move up and continue the scan with the next
-    // memory operand. If the next operand is a load save it and use alias
-    // information to check if it interferes with anything.
+    // Walk up the chain to find the next store node, ignoring any
+    // intermediate loads. Any other kind of node will halt the loop.
     SDNode *NextInChain = Index->getChain().getNode();
     while (true) {
       if (StoreSDNode *STn = dyn_cast<StoreSDNode>(NextInChain)) {
@@ -14702,6 +14624,11 @@ bool DAGCombiner::findBetterNeighborChains(StoreSDNode* St) {
     }
   }
 
+  // At this point, ChainedStores lists all of the Store nodes
+  // reachable by iterating up through chain nodes matching the above
+  // conditions.  For each such store identified, try to find an
+  // earlier chain to attach the store to which won't violate the
+  // required ordering.
   bool MadeChange = false;
   SmallVector<std::pair<StoreSDNode *, SDValue>, 8> BetterChains;
 

@@ -416,19 +416,19 @@ entry:
 ; MIPS64-EL-DAG: lwl $[[R1:[0-9]+]], 3($[[PTR]])
 ; MIPS64-EL-DAG: lwr $[[R1]],   0($[[PTR]])
 
-; MIPS64-EB:     ld $[[SPTR:[0-9]+]], %got_disp(arr)(
-; MIPS64-EB-DAG: lwl  $[[R1:[0-9]+]], 0($[[PTR]])
-; MIPS64-EB-DAG: lwr  $[[R1]],   3($[[PTR]])
-; MIPS64-EB-DAG: dsll $[[R1]], $[[R1]], 32
-; MIPS64-EB-DAG: lbu  $[[R2:[0-9]+]], 5($[[PTR]])
-; MIPS64-EB-DAG: lbu  $[[R3:[0-9]+]], 4($[[PTR]])
-; MIPS64-EB-DAG: dsll $[[T0:[0-9]+]], $[[R3]], 8
-; MIPS64-EB-DAG: or   $[[T1:[0-9]+]], $[[T0]], $[[R2]]
-; MIPS64-EB-DAG: dsll $[[T1]], $[[T1]], 16
-; MIPS64-EB-DAG: or   $[[T3:[0-9]+]], $[[R1]], $[[T1]]
-; MIPS64-EB-DAG: lbu  $[[R4:[0-9]+]], 6($[[PTR]])
-; MIPS64-EB-DAG: dsll $[[T4:[0-9]+]], $[[R4]], 8
-; MIPS64-EB-DAG: or   $4, $[[T3]], $[[T4]]
+; MIPS64-EB: ld $[[SPTR:[0-9]+]], %got_disp(arr)(
+; MIPS64-EB: lbu  $[[R2:[0-9]+]], 5($[[PTR]])
+; MIPS64-EB: lbu  $[[R3:[0-9]+]], 4($[[PTR]])
+; MIPS64-EB: dsll $[[T0:[0-9]+]], $[[R3]], 8
+; MIPS64-EB: or   $[[T1:[0-9]+]], $[[T0]], $[[R2]]
+; MIPS64-EB: lbu  $[[R4:[0-9]+]], 6($[[PTR]])
+; MIPS64-EB: dsll $[[T1]], $[[T1]], 16
+; MIPS64-EB: lwl  $[[R1:[0-9]+]], 0($[[PTR]])
+; MIPS64-EB: lwr  $[[R1]],   3($[[PTR]])
+; MIPS64-EB: dsll $[[R5:[0-9]+]], $[[R1]], 32
+; MIPS64-EB: or   $[[T3:[0-9]+]], $[[R5]], $[[T1]]
+; MIPS64-EB: dsll $[[T4:[0-9]+]], $[[R4]], 8
+; MIPS64-EB: or   $4, $[[T3]], $[[T4]]
 
 ; MIPS64R6:      ld $[[SPTR:[0-9]+]], %got_disp(arr)(
 

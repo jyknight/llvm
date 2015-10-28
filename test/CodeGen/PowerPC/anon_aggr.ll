@@ -60,10 +60,9 @@ equal:
 unequal:
   ret i8* %array2_ptr
 }
-
 ; CHECK-LABEL: func2:
-; CHECK: ld [[REG2:[0-9]+]], 72(1)
-; CHECK: cmpld {{([0-9]+,)?}}4, [[REG2]]
+; CHECK: cmpld {{([0-9]+,)?}}4, 6
+; CHECK: mr [[REG2:[0-9]+]], 6
 ; CHECK-DAG: std [[REG2]], -[[OFFSET1:[0-9]+]]
 ; CHECK-DAG: std 4, -[[OFFSET2:[0-9]+]]
 ; CHECK: ld 3, -[[OFFSET2]](1)
@@ -85,8 +84,8 @@ unequal:
 ; DARWIN64: mr
 ; DARWIN64: mr r[[REG3:[0-9]+]], r[[REGA:[0-9]+]]
 ; DARWIN64: cmpld {{(cr[0-9]+,)?}}r[[REGA]], r[[REG2]]
-; DARWIN64: std r[[REG3]], -[[OFFSET1:[0-9]+]]
 ; DARWIN64: std r[[REG2]], -[[OFFSET2:[0-9]+]]
+; DARWIN64: std r[[REG3]], -[[OFFSET1:[0-9]+]]
 ; DARWIN64: ld r3, -[[OFFSET1]]
 ; DARWIN64: ld r3, -[[OFFSET2]]
 
@@ -106,11 +105,11 @@ unequal:
 }
 
 ; CHECK-LABEL: func3:
-; CHECK: ld [[REG3:[0-9]+]], 72(1)
-; CHECK: ld [[REG4:[0-9]+]], 56(1)
-; CHECK: cmpld {{([0-9]+,)?}}[[REG4]], [[REG3]]
-; CHECK: std [[REG3]], -[[OFFSET1:[0-9]+]](1)
+; CHECK: cmpld {{([0-9]+,)?}}4, 6
+; CHECK: mr [[REG3:[0-9]+]], 6
+; CHECK: mr [[REG4:[0-9]+]], 4
 ; CHECK: std [[REG4]], -[[OFFSET2:[0-9]+]](1)
+; CHECK: std [[REG3]], -[[OFFSET1:[0-9]+]](1)
 ; CHECK: ld 3, -[[OFFSET2]](1)
 ; CHECK: ld 3, -[[OFFSET1]](1)
 
