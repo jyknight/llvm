@@ -27,7 +27,7 @@
 /// e.g. like this sample:
 ///
 /// \code
-/// class VarLengthObj : private TrailingObjects<VarLengthObj, int, double> {
+/// class VarLengthObj : private TrailingObjects<VarLengthObj, double, int> {
 ///   friend TrailingObjects;
 ///
 ///   unsigned NumInts, NumDoubles;
@@ -46,6 +46,15 @@
 /// by the implementation of the class, not as part of its interface
 /// (thus, private inheritance is suggested).
 ///
+/// By default, the trailing types must be in order by decreasing
+/// alignment requirements. Typically, this is a good idea, so as not
+/// to require calculating extra padding. But this restriction can be
+/// disabled by adding:
+/// \code
+///   static const bool EnforceTrailingObjectAlignment = false;
+/// \code
+/// to your class.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_SUPPORT_TRAILINGOBJECTS_H
@@ -54,6 +63,7 @@
 #include <new>
 #include <type_traits>
 #include "llvm/Support/AlignOf.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/type_traits.h"
 
@@ -149,13 +159,19 @@ struct TrailingObjectsImpl<Align, BaseTy, TopTrailingObj, PrevTy, NextTy,
   using ParentType::getTrailingObjectsImpl;
   using ParentType::additionalSizeToAllocImpl;
 
-  static void verifyTrailingObjectsAssertions() {
-    static_assert(llvm::AlignOf<PrevTy>::Alignment >=
-                      llvm::AlignOf<NextTy>::Alignment,
-                  "A trailing object requires more alignment than the previous "
-                  "trailing object provides");
+  static LLVM_CONSTEXPR bool requiresRealignment() {
+    return llvm::AlignOf<PrevTy>::Alignment < llvm::AlignOf<NextTy>::Alignment;
+  }
 
-    ParentType::verifyTrailingObjectsAssertions();
+  template<bool CheckAlignment> static void verifyTrailingObjectsAlignment() {
+    // Can't use requiresRealignment() since constexpr doesn't
+    // work in MSVC, so expand it here.
+    static_assert(!CheckAlignment || !(llvm::AlignOf<PrevTy>::Alignment < llvm::AlignOf<NextTy>::Alignment),
+                  "A trailing object requires more alignment than the previous "
+                  "trailing object provides and the class didn't use: "
+                  "static const bool EnforceTrailingObjectAlignment = false;");
+
+    ParentType::template verifyTrailingObjectsAlignment<CheckAlignment>();
   }
 
   // These two functions are helper functions for
@@ -170,30 +186,40 @@ struct TrailingObjectsImpl<Align, BaseTy, TopTrailingObj, PrevTy, NextTy,
   static const NextTy *
   getTrailingObjectsImpl(const BaseTy *Obj,
                          TrailingObjectsBase::OverloadToken<NextTy>) {
-    return reinterpret_cast<const NextTy *>(
-        TopTrailingObj::getTrailingObjectsImpl(
-            Obj, TrailingObjectsBase::OverloadToken<PrevTy>()) +
+    auto * Ptr = TopTrailingObj::getTrailingObjectsImpl(
+        Obj, TrailingObjectsBase::OverloadToken<PrevTy>()) +
         TopTrailingObj::callNumTrailingObjects(
-            Obj, TrailingObjectsBase::OverloadToken<PrevTy>()));
+            Obj, TrailingObjectsBase::OverloadToken<PrevTy>());
+
+    if (requiresRealignment())
+      return reinterpret_cast<const NextTy *>(
+          llvm::alignAddr(Ptr, llvm::alignOf<NextTy>()));
+    else
+      return reinterpret_cast<const NextTy *>(Ptr);
   }
 
   static NextTy *
   getTrailingObjectsImpl(BaseTy *Obj,
                          TrailingObjectsBase::OverloadToken<NextTy>) {
-    return reinterpret_cast<NextTy *>(
-        TopTrailingObj::getTrailingObjectsImpl(
-            Obj, TrailingObjectsBase::OverloadToken<PrevTy>()) +
+    auto * Ptr = TopTrailingObj::getTrailingObjectsImpl(
+        Obj, TrailingObjectsBase::OverloadToken<PrevTy>()) +
         TopTrailingObj::callNumTrailingObjects(
-            Obj, TrailingObjectsBase::OverloadToken<PrevTy>()));
+            Obj, TrailingObjectsBase::OverloadToken<PrevTy>());
+
+    if (requiresRealignment())
+      return reinterpret_cast<NextTy *>(
+          llvm::alignAddr(Ptr, llvm::alignOf<NextTy>()));
+    else
+      return reinterpret_cast<NextTy *>(Ptr);
   }
 
   // Helper function for TrailingObjects::additionalSizeToAlloc: this
   // function recurses to superclasses, each of which requires one
   // fewer size_t argument, and adds its own size.
   static LLVM_CONSTEXPR size_t additionalSizeToAllocImpl(
-      size_t Count1,
-      typename ExtractSecondType<MoreTys, size_t>::type... MoreCounts) {
-    return sizeof(NextTy) * Count1 + additionalSizeToAllocImpl(MoreCounts...);
+      size_t SizeSoFar,
+      size_t Count1, typename ExtractSecondType<MoreTys, size_t>::type... MoreCounts) {
+    return additionalSizeToAllocImpl((requiresRealignment() ? llvm::RoundUpToAlignment(SizeSoFar, llvm::alignOf<NextTy>()) : SizeSoFar) + sizeof(NextTy) * Count1, MoreCounts...);
   }
 };
 
@@ -207,9 +233,9 @@ struct TrailingObjectsImpl<Align, BaseTy, TopTrailingObj, PrevTy>
   // up the inheritance chain to subclasses.
   static void getTrailingObjectsImpl();
 
-  static LLVM_CONSTEXPR size_t additionalSizeToAllocImpl() { return 0; }
+  static LLVM_CONSTEXPR size_t additionalSizeToAllocImpl(size_t SizeSoFar) { return SizeSoFar; }
 
-  static void verifyTrailingObjectsAssertions() {}
+  template<bool CheckAlignment> static void verifyTrailingObjectsAlignment() {}
 };
 
 } // end namespace trailing_objects_internal
@@ -220,10 +246,10 @@ struct TrailingObjectsImpl<Align, BaseTy, TopTrailingObj, PrevTy>
 /// TrailingObjects type.
 template <typename BaseTy, typename... TrailingTys>
 class TrailingObjects : private trailing_objects_internal::TrailingObjectsImpl<
-                            trailing_objects_internal::AlignmentCalcHelper<
-                                TrailingTys...>::Alignment,
-                            BaseTy, TrailingObjects<BaseTy, TrailingTys...>,
-                            BaseTy, TrailingTys...> {
+  trailing_objects_internal::AlignmentCalcHelper<
+    TrailingTys...>::Alignment,
+  BaseTy, TrailingObjects<BaseTy, TrailingTys...>,
+  BaseTy, TrailingTys...> {
 
   template <int A, typename B, typename T, typename P, typename... M>
   friend struct trailing_objects_internal::TrailingObjectsImpl;
@@ -238,15 +264,16 @@ class TrailingObjects : private trailing_objects_internal::TrailingObjectsImpl<
 
   using ParentType::getTrailingObjectsImpl;
 
-  // Contains static_assert statements for the alignment of the
-  // types. Must not be at class-level, because BaseTy isn't complete
-  // at class instantiation time, but will be by the time this
-  // function is instantiated. Recurses through the superclasses.
+  // This function contains only static_asserts that check alignment
+  // of trailing types (if needed) and that BaseTy is final. The
+  // static_assert must be in a function, and not at class-level
+  // because BaseTy isn't complete at class instantiation time, but
+  // will be by the time this function is instantiated.
   static void verifyTrailingObjectsAssertions() {
 #ifdef LLVM_IS_FINAL
     static_assert(LLVM_IS_FINAL(BaseTy), "BaseTy must be final.");
 #endif
-    ParentType::verifyTrailingObjectsAssertions();
+    ParentType::template verifyTrailingObjectsAlignment<BaseTy::EnforceTrailingObjectAlignment>();
   }
 
   // These two methods are the base of the recursion for this method.
@@ -285,6 +312,14 @@ public:
   // make this (privately inherited) class public.
   using ParentType::OverloadToken;
 
+  /// If "true", trailing types are required to have decreasing
+  /// alignment requirements. This is usually a good property, to
+  /// avoid extra dynamic realignments. But if a particular order is
+  /// needed, setting this to "false" will bypass that error, and
+  /// TrailingObjects will emit code to realign after each
+  /// possibly-unaligned trailing type.
+  static const bool EnforceTrailingObjectAlignment = true;
+
   /// Returns a pointer to the trailing object array of the given type
   /// (which must be one of those specified in the class template). The
   /// array may have zero or more elements in it.
@@ -320,7 +355,7 @@ public:
       additionalSizeToAlloc(
           typename trailing_objects_internal::ExtractSecondType<
               TrailingTys, size_t>::type... Counts) {
-    return ParentType::additionalSizeToAllocImpl(Counts...);
+    return ParentType::additionalSizeToAllocImpl(0, Counts...);
   }
 
   /// Returns the total size of an object if it were allocated with the
@@ -332,7 +367,7 @@ public:
       std::is_same<Foo<TrailingTys...>, Foo<Tys...>>::value, size_t>::type
       totalSizeToAlloc(typename trailing_objects_internal::ExtractSecondType<
                        TrailingTys, size_t>::type... Counts) {
-    return sizeof(BaseTy) + ParentType::additionalSizeToAllocImpl(Counts...);
+    return sizeof(BaseTy) + ParentType::additionalSizeToAllocImpl(0, Counts...);
   }
 };
 
