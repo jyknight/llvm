@@ -32,12 +32,12 @@ define i32 @load_i32_acquire(i32* %mem) {
 }
 define i64 @load_i64_seq_cst(i64* %mem) {
 ; CHECK-LABEL: load_i64_seq_cst
-; CHECK: sync
-; PPC32: __sync_
-; PPC64-NOT: __sync_
+; PPC32: __atomic_
+; PPC64-NOT: __atomic_
+; PPC64: sync
 ; PPC64: ld
   %val = load atomic i64, i64* %mem seq_cst, align 8
-; CHECK: lwsync
+; PPC64: lwsync
   ret i64 %val
 }
 
@@ -65,9 +65,9 @@ define void @store_i32_release(i32* %mem) {
 }
 define void @store_i64_seq_cst(i64* %mem) {
 ; CHECK-LABEL: store_i64_seq_cst
-; CHECK: sync
-; PPC32: __sync_
-; PPC64-NOT: __sync_
+; PPC32: __atomic_
+; PPC64-NOT: __atomic_
+; PPC64: sync
 ; PPC64: std
   store atomic i64 42, i64* %mem seq_cst, align 8
   ret void
@@ -100,7 +100,8 @@ define i32 @cas_strong_i32_acqrel_acquire(i32* %mem) {
 }
 define i64 @cas_weak_i64_release_monotonic(i64* %mem) {
 ; CHECK-LABEL: cas_weak_i64_release_monotonic
-; CHECK: lwsync
+; PPC32: __atomic_
+; PPC64: lwsync
   %val = cmpxchg weak i64* %mem, i64 0, i64 1 release monotonic
 ; CHECK-NOT: [sync ]
   %loaded = extractvalue { i64, i1} %val, 0
@@ -130,7 +131,8 @@ define i32 @xchg_i32_acq_rel(i32* %mem, i32 %operand) {
 }
 define i64 @and_i64_release(i64* %mem, i64 %operand) {
 ; CHECK-LABEL: and_i64_release
-; CHECK: lwsync
+; PPC32: __atomic_
+; PPC64: lwsync
   %val = atomicrmw and i64* %mem, i64 %operand release
 ; CHECK-NOT: [sync ]
   ret i64 %val

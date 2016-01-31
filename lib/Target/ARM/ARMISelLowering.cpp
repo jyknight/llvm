@@ -836,18 +836,30 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM,
   else
     setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Expand);
 
-  // ARMv6 Thumb1 (except for CPUs that support dmb / dsb) and earlier use
-  // the default expansion. If we are targeting a single threaded system,
-  // then set them all for expand so we can lower them later into their
-  // non-atomic form.
-  if (TM.Options.ThreadModel == ThreadModel::Single)
-    setOperationAction(ISD::ATOMIC_FENCE,   MVT::Other, Expand);
-  else if (Subtarget->hasAnyDataBarrier() && (!Subtarget->isThumb() ||
-                                              Subtarget->hasV8MBaselineOps())) {
-    // ATOMIC_FENCE needs custom lowering; the others should have been expanded
-    // to ldrex/strex loops already.
-    setOperationAction(ISD::ATOMIC_FENCE,     MVT::Other, Custom);
+  // OSes that have lock-free atomics via kernel support can support
+  // large atomics regardless of the hardware (expanded to __sync_*
+  // libcalls as needed)
+  if (Subtarget->isTargetDarwin() || Subtarget->isTargetLinux()) {
+    setMaxAtomicSizeSupported(64);
+  } else if (Subtarget->hasLdrex()) {
+    // Processors that support ldrex get native lock-free
+    // atomics.
 
+    // The Cortex-M only supports up to 32bit operations, while
+    // everything else supports 64-bit (via the ldrexd intrinsic
+    // expansion).
+    if (Subtarget->isMClass())
+      setMaxAtomicSizeSupported(32);
+    else
+      setMaxAtomicSizeSupported(64);
+  }
+
+  // If there's anything we can use as a barrier, go through custom lowering
+  // for ATOMIC_FENCE.
+  setOperationAction(ISD::ATOMIC_FENCE,   MVT::Other,
+                     Subtarget->hasAnyDataBarrier() ? Custom : Expand);
+
+  if (Subtarget->hasLdrex()) {
     // On v8, we have particularly efficient implementations of atomic fences
     // if they can be combined with nearby atomic loads and stores.
     if (!Subtarget->hasV8Ops()) {
@@ -855,11 +867,6 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM,
       setInsertFencesForAtomic(true);
     }
   } else {
-    // If there's anything we can use as a barrier, go through custom lowering
-    // for ATOMIC_FENCE.
-    setOperationAction(ISD::ATOMIC_FENCE,   MVT::Other,
-                       Subtarget->hasAnyDataBarrier() ? Custom : Expand);
-
     // Set them all for expansion, which will force libcalls.
     setOperationAction(ISD::ATOMIC_CMP_SWAP,  MVT::i32, Expand);
     setOperationAction(ISD::ATOMIC_SWAP,      MVT::i32, Expand);
@@ -874,7 +881,8 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::ATOMIC_LOAD_UMIN, MVT::i32, Expand);
     setOperationAction(ISD::ATOMIC_LOAD_UMAX, MVT::i32, Expand);
     // Mark ATOMIC_LOAD and ATOMIC_STORE custom so we can handle the
-    // Unordered/Monotonic case.
+    // Unordered/Monotonic case. They fall through to Expand in other
+    // cases.
     setOperationAction(ISD::ATOMIC_LOAD, MVT::i32, Custom);
     setOperationAction(ISD::ATOMIC_STORE, MVT::i32, Custom);
   }
@@ -12043,33 +12051,34 @@ Instruction* ARMTargetLowering::emitTrailingFence(IRBuilder<> &Builder,
   llvm_unreachable("Unknown fence ordering in emitTrailingFence");
 }
 
-// Loads and stores less than 64-bits are already atomic; ones above that
-// are doomed anyway, so defer to the default libcall and blame the OS when
-// things go wrong. Cortex M doesn't have ldrexd/strexd though, so don't emit
-// anything for those.
+// Loads and stores less than 64-bits are already atomic; ones above
+// that are unsupported entirely, so make no changes for those. For
+// 64-bit operations, we can replace with ldrexd/strexd on CPUs that
+// have those instructions.
+//
+// FIXME: ldrd and strd are atomic if the CPU has LPAE (e.g. A15 has
+// that guarantee, see DDI0406C ARM architecture reference manual,
+// sections A8.8.72-74 LDRD)
 bool ARMTargetLowering::shouldExpandAtomicStoreInIR(StoreInst *SI) const {
   unsigned Size = SI->getValueOperand()->getType()->getPrimitiveSizeInBits();
-  return (Size == 64) && !Subtarget->isMClass();
+  return Size == 64 && Subtarget->hasLdrex() && !Subtarget->isMClass();
 }
 
-// Loads and stores less than 64-bits are already atomic; ones above that
-// are doomed anyway, so defer to the default libcall and blame the OS when
-// things go wrong. Cortex M doesn't have ldrexd/strexd though, so don't emit
-// anything for those.
-// FIXME: ldrd and strd are atomic if the CPU has LPAE (e.g. A15 has that
-// guarantee, see DDI0406C ARM architecture reference manual,
-// sections A8.8.72-74 LDRD)
 TargetLowering::AtomicExpansionKind
 ARMTargetLowering::shouldExpandAtomicLoadInIR(LoadInst *LI) const {
+  if (!Subtarget->hasLdrex() || Subtarget->isMClass())
+    return AtomicExpansionKind::None;
   unsigned Size = LI->getType()->getPrimitiveSizeInBits();
-  return ((Size == 64) && !Subtarget->isMClass()) ? AtomicExpansionKind::LLOnly
-                                                  : AtomicExpansionKind::None;
+  return (Size == 64) ? AtomicExpansionKind::LLOnly
+      : AtomicExpansionKind::None;
 }
 
 // For the real atomic operations, we have ldrex/strex up to 32 bits,
 // and up to 64 bits on the non-M profiles
 TargetLowering::AtomicExpansionKind
 ARMTargetLowering::shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const {
+  if (!Subtarget->hasLdrex()) return AtomicExpansionKind::None;
+
   unsigned Size = AI->getType()->getPrimitiveSizeInBits();
   return (Size <= (Subtarget->isMClass() ? 32U : 64U))
              ? AtomicExpansionKind::LLSC
@@ -12078,6 +12087,7 @@ ARMTargetLowering::shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const {
 
 bool ARMTargetLowering::shouldExpandAtomicCmpXchgInIR(
     AtomicCmpXchgInst *AI) const {
+  if (!Subtarget->hasLdrex()) return false;
   return true;
 }
 

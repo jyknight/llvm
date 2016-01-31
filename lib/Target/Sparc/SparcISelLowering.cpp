@@ -1608,6 +1608,12 @@ SparcTargetLowering::SparcTargetLowering(TargetMachine &TM,
 
   setInsertFencesForAtomic(true);
 
+  // Atomics are only supported on Sparcv9. (32bit atomics are also
+  // supported by the Leon sparcv8 variant, but we don't support that
+  // yet.)
+  if (Subtarget->isV9())
+    setMaxAtomicSizeSupported(64);
+
   setOperationAction(ISD::ATOMIC_SWAP, MVT::i32, Legal);
   setOperationAction(ISD::ATOMIC_CMP_SWAP, MVT::i32,
                      (Subtarget->isV9() ? Legal: Expand));

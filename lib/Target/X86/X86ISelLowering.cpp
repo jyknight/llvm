@@ -83,6 +83,15 @@ X86TargetLowering::X86TargetLowering(const X86TargetMachine &TM,
   // X86-SSE is even stranger. It uses -1 or 0 for vector masks.
   setBooleanVectorContents(ZeroOrNegativeOneBooleanContent);
 
+  if (Subtarget.is64Bit()) {
+    // FIXME: check hasCmpxchg16b()
+    setMaxAtomicSizeSupported(128);
+  } else {
+    // FIXME: Check that we actually have cmpxchg (i486 or later)
+    // FIXME: Check that we actually have cmpxchg8b (i586 or later)
+    setMaxAtomicSizeSupported(64);
+  }
+
   // For 64-bit, since we have so many registers, use the ILP scheduler.
   // For 32-bit, use the register pressure specific scheduling.
   // For Atom, always use ILP scheduling.

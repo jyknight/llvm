@@ -391,12 +391,11 @@ MipsTargetLowering::MipsTargetLowering(const MipsTargetMachine &TM,
   setOperationAction(ISD::STACKSAVE,         MVT::Other, Expand);
   setOperationAction(ISD::STACKRESTORE,      MVT::Other, Expand);
 
-  if (!Subtarget.isGP64bit()) {
-    setOperationAction(ISD::ATOMIC_LOAD,     MVT::i64,   Expand);
-    setOperationAction(ISD::ATOMIC_STORE,    MVT::i64,   Expand);
-  }
-
   setInsertFencesForAtomic(true);
+  if (Subtarget.isGP64bit())
+    setMaxAtomicSizeSupported(64);
+  else
+    setMaxAtomicSizeSupported(32);
 
   if (!Subtarget.hasMips32r2()) {
     setOperationAction(ISD::SIGN_EXTEND_INREG, MVT::i8,  Expand);

@@ -128,6 +128,9 @@ SystemZTargetLowering::SystemZTargetLowering(const TargetMachine &TM,
   // Instructions are strings of 2-byte aligned 2-byte values.
   setMinFunctionAlignment(2);
 
+  // This backend handles atomics ops up to 64bits.
+  setMaxAtomicSizeSupported(64);
+
   // Handle operations that are handled in a similar way for all types.
   for (unsigned I = MVT::FIRST_INTEGER_VALUETYPE;
        I <= MVT::LAST_FP_VALUETYPE;

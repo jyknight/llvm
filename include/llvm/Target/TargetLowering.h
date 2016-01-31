@@ -1052,6 +1052,14 @@ public:
   /// \name Helpers for atomic expansion.
   /// @{
 
+  /// Returns the maximum atomic operation size (in bits) supported by
+  /// the backend. Atomic operations greater than this size (as well
+  /// as ones that are not naturally aligned), will be expanded by
+  /// AtomicExpandPass into an __atomic_* library call.
+  unsigned getMaxAtomicSizeSupported() const {
+    return MaxAtomicSizeSupported;
+  }
+
   /// Perform a load-linked operation on Addr, returning a "Value *" with the
   /// corresponding pointee type. This may entail some non-trivial operations to
   /// truncate or reconstruct types that will be illegal in the backend. See
@@ -1445,6 +1453,14 @@ protected:
   /// order of atomic memory operations to Monotonic.
   void setInsertFencesForAtomic(bool fence) {
     InsertFencesForAtomic = fence;
+  }
+
+  /// Set the maximum atomic operation size supported by the
+  /// backend. Atomic operations greater than this size (as well as
+  /// ones that are not naturally aligned), will be expanded by
+  /// AtomicExpandPass into an __atomic_* library call.
+  void setMaxAtomicSizeSupported(unsigned Size) {
+    MaxAtomicSizeSupported = Size;
   }
 
 public:
@@ -1860,6 +1876,10 @@ private:
   /// ordering for atomics.  (This will be set for for most architectures with
   /// weak memory ordering.)
   bool InsertFencesForAtomic;
+
+  /// Size in bits of the maximum atomics size the backend supports.
+  /// Accesses larger than this will be expanded by AtomicExpandPass.
+  unsigned MaxAtomicSizeSupported;
 
   /// If set to a physical register, this specifies the register that
   /// llvm.savestack/llvm.restorestack should save and restore.
