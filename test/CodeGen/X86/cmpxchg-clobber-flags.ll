@@ -1,5 +1,5 @@
-; RUN: llc -mtriple=i386-linux-gnu %s -o - | FileCheck %s -check-prefix=i386
-; RUN: llc -mtriple=i386-linux-gnu -pre-RA-sched=fast %s -o - | FileCheck %s -check-prefix=i386f
+; RUN: llc -mtriple=i386-linux-gnu -mcpu=i686 %s -o - | FileCheck %s -check-prefix=i386
+; RUN: llc -mtriple=i386-linux-gnu -mcpu=i686 -pre-RA-sched=fast %s -o - | FileCheck %s -check-prefix=i386f
 
 ; RUN: llc -mtriple=x86_64-linux-gnu %s -o - | FileCheck %s -check-prefix=x8664
 ; RUN: llc -mtriple=x86_64-linux-gnu -pre-RA-sched=fast %s -o - | FileCheck %s -check-prefix=x8664

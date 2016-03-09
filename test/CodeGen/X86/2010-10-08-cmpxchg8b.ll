@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86 -mtriple=i386-apple-darwin | FileCheck %s
+; RUN: llc < %s -march=x86 -mtriple=i686-apple-darwin -mcpu=i686 | FileCheck %s
 ; PR8297
 ;
 ; On i386, i64 cmpxchg is lowered during legalize types to extract the

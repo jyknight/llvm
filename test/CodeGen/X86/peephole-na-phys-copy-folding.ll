@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=i386-linux-gnu %s -o - | FileCheck %s
+; RUN: llc -mtriple=i686-linux-gnu -mcpu=i686 %s -o - | FileCheck %s
 ; RUN: llc -mtriple=x86_64-linux-gnu -mattr=+sahf %s -o - | FileCheck %s
 
 ; TODO: Reenable verify-machineinstrs once the if (!AXDead) // FIXME in

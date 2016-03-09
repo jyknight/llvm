@@ -714,24 +714,28 @@ let isCodeGenOnly = 1, SchedRW = [WriteALULd, WriteRMW] in {
   let Defs = [AL, EFLAGS], Uses = [AL] in
   def NAME#8  : I<Opc8, Form, (outs), (ins i8mem:$ptr, GR8:$swap),
                   !strconcat(mnemonic, "{b}\t{$swap, $ptr|$ptr, $swap}"),
-                  [(frag addr:$ptr, GR8:$swap, 1)], itin8>, TB, LOCK;
+                  [(frag addr:$ptr, GR8:$swap, 1)], itin8>, TB, LOCK,
+                  Requires<[Has486Insns]>;
   let Defs = [AX, EFLAGS], Uses = [AX] in
   def NAME#16 : I<Opc, Form, (outs), (ins i16mem:$ptr, GR16:$swap),
                   !strconcat(mnemonic, "{w}\t{$swap, $ptr|$ptr, $swap}"),
-                  [(frag addr:$ptr, GR16:$swap, 2)], itin>, TB, OpSize16, LOCK;
+                  [(frag addr:$ptr, GR16:$swap, 2)], itin>, TB, OpSize16, LOCK,
+                  Requires<[Has486Insns]>;
   let Defs = [EAX, EFLAGS], Uses = [EAX] in
   def NAME#32 : I<Opc, Form, (outs), (ins i32mem:$ptr, GR32:$swap),
                   !strconcat(mnemonic, "{l}\t{$swap, $ptr|$ptr, $swap}"),
-                  [(frag addr:$ptr, GR32:$swap, 4)], itin>, TB, OpSize32, LOCK;
+                  [(frag addr:$ptr, GR32:$swap, 4)], itin>, TB, OpSize32, LOCK,
+                  Requires<[Has486Insns]>;
   let Defs = [RAX, EFLAGS], Uses = [RAX] in
   def NAME#64 : RI<Opc, Form, (outs), (ins i64mem:$ptr, GR64:$swap),
                    !strconcat(mnemonic, "{q}\t{$swap, $ptr|$ptr, $swap}"),
-                   [(frag addr:$ptr, GR64:$swap, 8)], itin>, TB, LOCK;
+                   [(frag addr:$ptr, GR64:$swap, 8)], itin>, TB, LOCK,
+                  Requires<[In64BitMode]>;
 }
 }
 
 let Defs = [EAX, EDX, EFLAGS], Uses = [EAX, EBX, ECX, EDX],
-    SchedRW = [WriteALULd, WriteRMW] in {
+    Predicates = [Has586Insns], SchedRW = [WriteALULd, WriteRMW] in {
 defm LCMPXCHG8B : LCMPXCHG_UnOp<0xC7, MRM1m, "cmpxchg8b",
                                 X86cas8, i64mem,
                                 IIC_CMPX_LOCK_8B>;
@@ -804,28 +808,28 @@ multiclass ATOMIC_LOAD_BINOP<bits<8> opc8, bits<8> opc, string mnemonic,
                     !strconcat(mnemonic, "{b}\t{$val, $ptr|$ptr, $val}"),
                     [(set GR8:$dst,
                           (!cast<PatFrag>(frag # "_8") addr:$ptr, GR8:$val))],
-                    itin8>;
+                    itin8>, Requires<[Has486Insns]>;
     def NAME#16 : I<opc, MRMSrcMem, (outs GR16:$dst),
                     (ins GR16:$val, i16mem:$ptr),
                     !strconcat(mnemonic, "{w}\t{$val, $ptr|$ptr, $val}"),
                     [(set
                        GR16:$dst,
                        (!cast<PatFrag>(frag # "_16") addr:$ptr, GR16:$val))],
-                    itin>, OpSize16;
+                    itin>, OpSize16, Requires<[Has486Insns]>;
     def NAME#32 : I<opc, MRMSrcMem, (outs GR32:$dst),
                     (ins GR32:$val, i32mem:$ptr),
                     !strconcat(mnemonic, "{l}\t{$val, $ptr|$ptr, $val}"),
                     [(set
                        GR32:$dst,
                        (!cast<PatFrag>(frag # "_32") addr:$ptr, GR32:$val))],
-                    itin>, OpSize32;
+                    itin>, OpSize32, Requires<[Has486Insns]>;
     def NAME#64 : RI<opc, MRMSrcMem, (outs GR64:$dst),
                      (ins GR64:$val, i64mem:$ptr),
                      !strconcat(mnemonic, "{q}\t{$val, $ptr|$ptr, $val}"),
                      [(set
                         GR64:$dst,
                         (!cast<PatFrag>(frag # "_64") addr:$ptr, GR64:$val))],
-                     itin>;
+                     itin>, Requires<[In64BitMode]>;
   }
 }
 
@@ -1926,4 +1930,14 @@ def : Pat<(cttz_zero_undef (loadi64 addr:$src)), (BSF64rm addr:$src)>;
 // register-register 16 bit bswap. This maps it to a ROL instruction.
 let Predicates = [HasMOVBE] in {
  def : Pat<(bswap GR16:$src), (ROL16ri GR16:$src, (i8 8))>;
+}
+
+// On a 386, we expand bswap to 3 rotates after register selection.
+let Predicates = [No486Insns],
+    Constraints = "$src = $dst", Defs = [EFLAGS],
+    isPseudo = 1 in {
+def PSEUDO_BSWAP32r : I<0, Pseudo,
+                       (outs GR32:$dst), (ins GR32:$src),
+                       "bswap\t$dst",
+                      [(set GR32:$dst, (bswap GR32:$src))]>;
 }

@@ -31,8 +31,16 @@ def Mode16Bit : SubtargetFeature<"16bit-mode", "In16BitMode", "true",
 // X86 Subtarget features
 //===----------------------------------------------------------------------===//
 
+def Feature486Insns : SubtargetFeature<"i486insns","Has486Insns", "true",
+                                      "Enable i486 instructions">;
+
+def Feature586Insns : SubtargetFeature<"i586insns","Has586Insns", "true",
+                                      "Enable i586 instructions",
+				      [Feature486Insns]>;
+
 def FeatureCMOV    : SubtargetFeature<"cmov","HasCMov", "true",
-                                      "Enable conditional move instructions">;
+                                      "Enable conditional move instructions",
+				      [Feature586Insns]>;
 
 def FeaturePOPCNT   : SubtargetFeature<"popcnt", "HasPOPCNT", "true",
                                        "Support POPCNT instruction">;
@@ -261,11 +269,11 @@ class Proc<string Name, list<SubtargetFeature> Features>
 
 def : Proc<"generic",         [FeatureSlowUAMem16]>;
 def : Proc<"i386",            [FeatureSlowUAMem16]>;
-def : Proc<"i486",            [FeatureSlowUAMem16]>;
-def : Proc<"i586",            [FeatureSlowUAMem16]>;
-def : Proc<"pentium",         [FeatureSlowUAMem16]>;
-def : Proc<"pentium-mmx",     [FeatureSlowUAMem16, FeatureMMX]>;
-def : Proc<"i686",            [FeatureSlowUAMem16]>;
+def : Proc<"i486",            [FeatureSlowUAMem16, Feature486Insns]>;
+def : Proc<"i586",            [FeatureSlowUAMem16, Feature586Insns]>;
+def : Proc<"pentium",         [FeatureSlowUAMem16, Feature586Insns]>;
+def : Proc<"pentium-mmx",     [FeatureSlowUAMem16, FeatureMMX, Feature586Insns]>;
+def : Proc<"i686",            [FeatureSlowUAMem16, Feature586Insns]>;
 def : Proc<"pentiumpro",      [FeatureSlowUAMem16, FeatureCMOV]>;
 def : Proc<"pentium2",        [FeatureSlowUAMem16, FeatureMMX, FeatureCMOV,
                                FeatureFXSR]>;

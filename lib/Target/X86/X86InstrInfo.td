@@ -767,6 +767,9 @@ def vectoraddr : ComplexPattern<iPTR, 5, "selectVectorAddr", [],[SDNPWantParent]
 // X86 Instruction Predicate Definitions.
 def TruePredicate : Predicate<"true">;
 
+def Has486Insns  : Predicate<"Subtarget->has486Insns()">;
+def No486Insns  : Predicate<"!Subtarget->has486Insns()">;
+def Has586Insns  : Predicate<"Subtarget->has586Insns()">;
 def HasCMov      : Predicate<"Subtarget->hasCMov()">;
 def NoCMov       : Predicate<"!Subtarget->hasCMov()">;
 
@@ -1234,11 +1237,13 @@ let Constraints = "$src = $dst", SchedRW = [WriteALU] in {
 def BSWAP32r : I<0xC8, AddRegFrm,
                  (outs GR32:$dst), (ins GR32:$src),
                  "bswap{l}\t$dst",
-                 [(set GR32:$dst, (bswap GR32:$src))], IIC_BSWAP>, OpSize32, TB;
+                 [(set GR32:$dst, (bswap GR32:$src))], IIC_BSWAP>, OpSize32, TB,
+                 Requires<[Has486Insns]>;
 
 def BSWAP64r : RI<0xC8, AddRegFrm, (outs GR64:$dst), (ins GR64:$src),
                   "bswap{q}\t$dst",
-                  [(set GR64:$dst, (bswap GR64:$src))], IIC_BSWAP>, TB;
+                  [(set GR64:$dst, (bswap GR64:$src))], IIC_BSWAP>, TB,
+                  Requires<[Has486Insns]>;
 } // Constraints = "$src = $dst", SchedRW
 
 // Bit scan instructions.
@@ -1878,65 +1883,70 @@ def XCHG64ar : RI<0x90, AddRegFrm, (outs), (ins GR64:$src),
 
 let SchedRW = [WriteALU] in {
 def XADD8rr : I<0xC0, MRMDestReg, (outs GR8:$dst), (ins GR8:$src),
-                "xadd{b}\t{$src, $dst|$dst, $src}", [], IIC_XADD_REG>, TB;
+                "xadd{b}\t{$src, $dst|$dst, $src}", [], IIC_XADD_REG>, TB,
+                Requires<[Has486Insns]>;
 def XADD16rr : I<0xC1, MRMDestReg, (outs GR16:$dst), (ins GR16:$src),
                  "xadd{w}\t{$src, $dst|$dst, $src}", [], IIC_XADD_REG>, TB,
-                 OpSize16;
+                 OpSize16, Requires<[Has486Insns]>;
 def XADD32rr  : I<0xC1, MRMDestReg, (outs GR32:$dst), (ins GR32:$src),
                  "xadd{l}\t{$src, $dst|$dst, $src}", [], IIC_XADD_REG>, TB,
-                 OpSize32;
+                 OpSize32, Requires<[Has486Insns]>;
 def XADD64rr  : RI<0xC1, MRMDestReg, (outs GR64:$dst), (ins GR64:$src),
-                   "xadd{q}\t{$src, $dst|$dst, $src}", [], IIC_XADD_REG>, TB;
+                   "xadd{q}\t{$src, $dst|$dst, $src}", [], IIC_XADD_REG>, TB,
+                   Requires<[In64BitMode]>;
 } // SchedRW
 
 let mayLoad = 1, mayStore = 1, SchedRW = [WriteALULd, WriteRMW] in {
 def XADD8rm   : I<0xC0, MRMDestMem, (outs), (ins i8mem:$dst, GR8:$src),
-                 "xadd{b}\t{$src, $dst|$dst, $src}", [], IIC_XADD_MEM>, TB;
+                 "xadd{b}\t{$src, $dst|$dst, $src}", [], IIC_XADD_MEM>, TB,
+		 Requires<[Has486Insns]>;
 def XADD16rm  : I<0xC1, MRMDestMem, (outs), (ins i16mem:$dst, GR16:$src),
                  "xadd{w}\t{$src, $dst|$dst, $src}", [], IIC_XADD_MEM>, TB,
-                 OpSize16;
+                 OpSize16, Requires<[Has486Insns]>;
 def XADD32rm  : I<0xC1, MRMDestMem, (outs), (ins i32mem:$dst, GR32:$src),
                  "xadd{l}\t{$src, $dst|$dst, $src}", [], IIC_XADD_MEM>, TB,
-                 OpSize32;
+                 OpSize32, Requires<[Has486Insns]>;
 def XADD64rm  : RI<0xC1, MRMDestMem, (outs), (ins i64mem:$dst, GR64:$src),
-                   "xadd{q}\t{$src, $dst|$dst, $src}", [], IIC_XADD_MEM>, TB;
+                   "xadd{q}\t{$src, $dst|$dst, $src}", [], IIC_XADD_MEM>, TB,
+		   Requires<[In64BitMode]>;
 
 }
 
 let SchedRW = [WriteALU] in {
 def CMPXCHG8rr : I<0xB0, MRMDestReg, (outs GR8:$dst), (ins GR8:$src),
                    "cmpxchg{b}\t{$src, $dst|$dst, $src}", [],
-                   IIC_CMPXCHG_REG8>, TB;
+                   IIC_CMPXCHG_REG8>, TB, Requires<[Has486Insns]>;
 def CMPXCHG16rr : I<0xB1, MRMDestReg, (outs GR16:$dst), (ins GR16:$src),
                     "cmpxchg{w}\t{$src, $dst|$dst, $src}", [],
-                    IIC_CMPXCHG_REG>, TB, OpSize16;
+                    IIC_CMPXCHG_REG>, TB, OpSize16, Requires<[Has486Insns]>;
 def CMPXCHG32rr  : I<0xB1, MRMDestReg, (outs GR32:$dst), (ins GR32:$src),
                      "cmpxchg{l}\t{$src, $dst|$dst, $src}", [],
-                     IIC_CMPXCHG_REG>, TB, OpSize32;
+                     IIC_CMPXCHG_REG>, TB, OpSize32, Requires<[Has486Insns]>;
 def CMPXCHG64rr  : RI<0xB1, MRMDestReg, (outs GR64:$dst), (ins GR64:$src),
                       "cmpxchg{q}\t{$src, $dst|$dst, $src}", [],
-                      IIC_CMPXCHG_REG>, TB;
+                      IIC_CMPXCHG_REG>, TB, Requires<[In64BitMode]>;
 } // SchedRW
 
 let SchedRW = [WriteALULd, WriteRMW] in {
 let mayLoad = 1, mayStore = 1 in {
 def CMPXCHG8rm   : I<0xB0, MRMDestMem, (outs), (ins i8mem:$dst, GR8:$src),
                      "cmpxchg{b}\t{$src, $dst|$dst, $src}", [],
-                     IIC_CMPXCHG_MEM8>, TB;
+                     IIC_CMPXCHG_MEM8>, TB, Requires<[Has486Insns]>;
 def CMPXCHG16rm  : I<0xB1, MRMDestMem, (outs), (ins i16mem:$dst, GR16:$src),
                      "cmpxchg{w}\t{$src, $dst|$dst, $src}", [],
-                     IIC_CMPXCHG_MEM>, TB, OpSize16;
+                     IIC_CMPXCHG_MEM>, TB, OpSize16, Requires<[Has486Insns]>;
 def CMPXCHG32rm  : I<0xB1, MRMDestMem, (outs), (ins i32mem:$dst, GR32:$src),
                      "cmpxchg{l}\t{$src, $dst|$dst, $src}", [],
-                     IIC_CMPXCHG_MEM>, TB, OpSize32;
+                     IIC_CMPXCHG_MEM>, TB, OpSize32, Requires<[Has486Insns]>;
 def CMPXCHG64rm  : RI<0xB1, MRMDestMem, (outs), (ins i64mem:$dst, GR64:$src),
                       "cmpxchg{q}\t{$src, $dst|$dst, $src}", [],
-                      IIC_CMPXCHG_MEM>, TB;
+                      IIC_CMPXCHG_MEM>, TB, Requires<[In64BitMode]>;
 }
 
 let Defs = [EAX, EDX, EFLAGS], Uses = [EAX, EBX, ECX, EDX] in
 def CMPXCHG8B : I<0xC7, MRM1m, (outs), (ins i64mem:$dst),
-                  "cmpxchg8b\t$dst", [], IIC_CMPXCHG_8B>, TB;
+                  "cmpxchg8b\t$dst", [], IIC_CMPXCHG_8B>, TB,
+                  Requires<[Has586Insns]>;
 
 let Defs = [RAX, RDX, EFLAGS], Uses = [RAX, RBX, RCX, RDX] in
 def CMPXCHG16B : RI<0xC7, MRM1m, (outs), (ins i128mem:$dst),

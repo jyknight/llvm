@@ -89,9 +89,10 @@ X86TargetLowering::X86TargetLowering(const X86TargetMachine &TM,
     else
       setMaxAtomicSizeSupported(64);
   } else {
-    // FIXME: Check that we actually have cmpxchg (i486 or later)
-    // FIXME: Check that we actually have cmpxchg8b (i586 or later)
-    setMaxAtomicSizeSupported(64);
+    if (Subtarget.has586Insns())
+      setMaxAtomicSizeSupported(64); // has cmpxchg8b
+    else if (Subtarget.has486Insns())
+      setMaxAtomicSizeSupported(32); // has cmpxchg
   }
 
   // For 64-bit, since we have so many registers, use the ILP scheduler.
@@ -29463,6 +29464,10 @@ static bool clobbersFlagRegisters(const SmallVector<StringRef, 4> &AsmPieces) {
 }
 
 bool X86TargetLowering::ExpandInlineAsm(CallInst *CI) const {
+  // If we don't have bswap available, don't do these transforms.
+  if (!Subtarget.has486Insns())
+    return false;
+
   InlineAsm *IA = cast<InlineAsm>(CI->getCalledValue());
 
   std::string AsmStr = IA->getAsmString();
@@ -29478,10 +29483,6 @@ bool X86TargetLowering::ExpandInlineAsm(CallInst *CI) const {
   switch (AsmPieces.size()) {
   default: return false;
   case 1:
-    // FIXME: this should verify that we are targeting a 486 or better.  If not,
-    // we will turn this bswap into something that will be lowered to logical
-    // ops instead of emitting the bswap asm.  For now, we don't support 486 or
-    // lower so don't worry about this.
     // bswap $0
     if (matchAsm(AsmPieces[0], {"bswap", "$0"}) ||
         matchAsm(AsmPieces[0], {"bswapl", "$0"}) ||

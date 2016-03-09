@@ -1,5 +1,5 @@
 ; RUN: llc < %s -mtriple=x86_64-unknown-unknown -verify-machineinstrs | FileCheck %s --check-prefix X64
-; RUN: llc < %s -mtriple=i686-unknown-unknown -verify-machineinstrs | FileCheck %s --check-prefix X32
+; RUN: llc < %s -mtriple=i686-unknown-unknown -verify-machineinstrs -mcpu=i686 | FileCheck %s --check-prefix X32
 ; RUN: llc < %s -mtriple=x86_64-unknown-unknown -mattr=slow-incdec -verify-machineinstrs | FileCheck %s --check-prefix SLOW_INC
 
 ; This file checks that atomic (non-seq_cst) stores of immediate values are

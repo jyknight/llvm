@@ -1,7 +1,8 @@
 ; bswap should be constant folded when it is passed a constant argument
 
-; RUN: llc < %s -march=x86 -mcpu=i686 | FileCheck %s
-; RUN: llc < %s -march=x86-64 | FileCheck %s --check-prefix=CHECK64
+; RUN: llc < %s -march=x86 -mcpu=i386 | FileCheck --check-prefix=CHECK386 --check-prefix=CHECK %s
+; RUNX: llc < %s -march=x86 -mcpu=i486 | FileCheck --check-prefix=CHECK486 --check-prefix=CHECKBSW --check-prefix=CHECK %s
+; RUN: llc < %s -march=x86-64 | FileCheck --check-prefix=CHECK64 --check-prefix=CHECKBSW --check-prefix=CHECK %s
 
 declare i16 @llvm.bswap.i16(i16)
 
@@ -11,30 +12,31 @@ declare i64 @llvm.bswap.i64(i64)
 
 define i16 @W(i16 %A) {
 ; CHECK-LABEL: W:
-; CHECK: rolw $8, %ax
-
-; CHECK64-LABEL: W:
-; CHECK64: rolw $8, %
+; CHECK: rolw $8, %
         %Z = call i16 @llvm.bswap.i16( i16 %A )         ; <i16> [#uses=1]
         ret i16 %Z
 }
 
 define i32 @X(i32 %A) {
 ; CHECK-LABEL: X:
-; CHECK: bswapl %eax
-
-; CHECK64-LABEL: X:
-; CHECK64: bswapl %
+; CHECK386: rorw $8, %ax
+; CHECK386: rorl $16, %eax
+; CHECK386: rorw $8, %ax
+; CHECKBSW: bswapl %
         %Z = call i32 @llvm.bswap.i32( i32 %A )         ; <i32> [#uses=1]
         ret i32 %Z
 }
 
 define i64 @Y(i64 %A) {
 ; CHECK-LABEL: Y:
-; CHECK: bswapl %eax
-; CHECK: bswapl %edx
-
-; CHECK64-LABEL: Y:
+; CHECK386: rorw $8, %ax
+; CHECK386: rorl $16, %eax
+; CHECK386: rorw $8, %ax
+; CHECK386: rorw $8, %dx
+; CHECK386: rorl $16, %edx
+; CHECK386: rorw $8, %dx
+; CHECK486: bswapl %eax
+; CHECK486: bswapl %edx
 ; CHECK64: bswapq %
         %Z = call i64 @llvm.bswap.i64( i64 %A )         ; <i64> [#uses=1]
         ret i64 %Z
@@ -44,12 +46,12 @@ define i64 @Y(i64 %A) {
 define i32 @test1(i32 %a) nounwind readnone {
 entry:
 ; CHECK-LABEL: test1:
-; CHECK: bswapl [[REG:%.*]]
-; CHECK: shrl $16, [[REG]]
-
-; CHECK64-LABEL: test1:
-; CHECK64: bswapl [[REG:%.*]]
-; CHECK64: shrl $16, [[REG]]
+; CHECK386: rorw $8, %[[REG:.*]]
+; CHECK386: rorl $16, %e[[REG]]
+; CHECK386: rorw $8, %[[REG]]
+; CHECK386: shrl $16, %e[[REG]]
+; CHECKBSW: bswapl [[REG:%.*]]
+; CHECKBSW: shrl $16, [[REG]]
   %and = lshr i32 %a, 8
   %shr3 = and i32 %and, 255
   %and2 = shl i32 %a, 8
@@ -61,12 +63,12 @@ entry:
 define i32 @test2(i32 %a) nounwind readnone {
 entry:
 ; CHECK-LABEL: test2:
-; CHECK: bswapl [[REG:%.*]]
-; CHECK: sarl $16, [[REG]]
-
-; CHECK64-LABEL: test2:
-; CHECK64: bswapl [[REG:%.*]]
-; CHECK64: sarl $16, [[REG]]
+; CHECK386: rorw $8, %[[REG:.*]]
+; CHECK386: rorl $16, %e[[REG]]
+; CHECK386: rorw $8, %[[REG]]
+; CHECK386: sarl $16, %e[[REG]]
+; CHECKBSW: bswapl [[REG:%.*]]
+; CHECKBSW: sarl $16, [[REG]]
   %and = lshr i32 %a, 8
   %shr4 = and i32 %and, 255
   %and2 = shl i32 %a, 8
@@ -86,11 +88,8 @@ entry:
 define i64 @not_bswap() {
 ; CHECK-LABEL: not_bswap:
 ; CHECK-NOT: bswapl
+; CHECK-NOT: bswapq
 ; CHECK: ret
-
-; CHECK64-LABEL: not_bswap:
-; CHECK64-NOT: bswapq
-; CHECK64: ret
   %init = load i16, i16* @var16
   %big = zext i16 %init to i64
 
@@ -109,12 +108,8 @@ define i64 @not_bswap() {
 define i64 @not_useful_bswap() {
 ; CHECK-LABEL: not_useful_bswap:
 ; CHECK-NOT: bswapl
+; CHECK-NOT: bswapq
 ; CHECK: ret
-
-; CHECK64-LABEL: not_useful_bswap:
-; CHECK64-NOT: bswapq
-; CHECK64: ret
-
   %init = load i8, i8* @var8
   %big = zext i8 %init to i64
 
@@ -131,11 +126,13 @@ define i64 @not_useful_bswap() {
 
 define i64 @finally_useful_bswap() {
 ; CHECK-LABEL: finally_useful_bswap:
-; CHECK: bswapl [[REG:%.*]]
-; CHECK: shrl $16, [[REG]]
-; CHECK: ret
-
-; CHECK64-LABEL: finally_useful_bswap:
+; CHECK386: rorw $8, %[[REG:.*]]
+; CHECK386: rorl $16, %e[[REG]]
+; CHECK386: rorw $8, %[[REG]]
+; CHECK386: shrl $16, %e[[REG]]
+; CHECK486: bswapl [[REG:%.*]]
+; CHECK486: shrl $16, [[REG]]
+; CHECK486: ret
 ; CHECK64: bswapq [[REG:%.*]]
 ; CHECK64: shrq $48, [[REG]]
 ; CHECK64: ret

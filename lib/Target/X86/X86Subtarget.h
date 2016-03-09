@@ -70,6 +70,12 @@ protected:
   /// MMX, 3DNow, 3DNow Athlon, or none supported.
   X863DNowEnum X863DNowLevel;
 
+  /// Target has the instructions added with i486.
+  bool Has486Insns;
+
+  /// Target has the instructions added with i586.
+  bool Has586Insns;
+
   /// True if this processor has conditional move instructions
   /// (generally pentium pro+).
   bool HasCMov;
@@ -370,6 +376,8 @@ public:
   PICStyles::Style getPICStyle() const { return PICStyle; }
   void setPICStyle(PICStyles::Style Style)  { PICStyle = Style; }
 
+  bool has486Insns() const { return Has486Insns; }
+  bool has586Insns() const { return Has586Insns; }
   bool hasCMov() const { return HasCMov; }
   bool hasSSE1() const { return X86SSELevel >= SSE1; }
   bool hasSSE2() const { return X86SSELevel >= SSE2; }

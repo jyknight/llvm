@@ -5370,6 +5370,20 @@ static void expandLoadStackGuard(MachineInstrBuilder &MIB,
   MIB.addReg(Reg, RegState::Kill).addImm(1).addReg(0).addImm(0).addReg(0);
 }
 
+static bool ExpandPSEUDO_BSWAP32r(MachineInstr *MI,
+                                  const TargetInstrInfo &TII) {
+  MachineBasicBlock *BB = MI->getParent();
+  DebugLoc DL = MI->getDebugLoc();
+  unsigned Reg = MI->getOperand(0).getReg();
+  unsigned Reg16 = getX86SubSuperRegister(Reg, 16);
+  BuildMI(*BB, MI, DL, TII.get(X86::ROR16ri), Reg16).addReg(Reg16).addImm(8);
+  BuildMI(*BB, MI, DL, TII.get(X86::ROR32ri), Reg).addReg(Reg).addImm(16);
+  BuildMI(*BB, MI, DL, TII.get(X86::ROR16ri), Reg16).addReg(Reg16).addImm(8);
+
+  MI->eraseFromParent(); // The pseudo is gone now.
+  return true;
+}
+
 bool X86InstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
   bool HasAVX = Subtarget.hasAVX();
   MachineInstrBuilder MIB(*MI->getParent()->getParent(), MI);
@@ -5426,6 +5440,8 @@ bool X86InstrInfo::expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
   case TargetOpcode::LOAD_STACK_GUARD:
     expandLoadStackGuard(MIB, *this);
     return true;
+  case X86::PSEUDO_BSWAP32r:
+    return ExpandPSEUDO_BSWAP32r(MIB, *this);
   }
   return false;
 }

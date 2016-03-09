@@ -1,5 +1,5 @@
 ; RUN: llc < %s -mtriple=x86_64-unknown-unknown -verify-machineinstrs | FileCheck %s
-; RUN: llc < %s -mtriple=i686-unknown-unknown -verify-machineinstrs | FileCheck %s
+; RUN: llc < %s -mtriple=i686-unknown-unknown -mcpu=i686 -verify-machineinstrs | FileCheck %s
 
 ; Make sure that flags are properly preserved despite atomic optimizations.
 
