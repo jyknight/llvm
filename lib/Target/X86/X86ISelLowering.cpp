@@ -84,8 +84,10 @@ X86TargetLowering::X86TargetLowering(const X86TargetMachine &TM,
   setBooleanVectorContents(ZeroOrNegativeOneBooleanContent);
 
   if (Subtarget.is64Bit()) {
-    // FIXME: check hasCmpxchg16b()
-    setMaxAtomicSizeSupported(128);
+    if (Subtarget.hasCmpxchg16b())
+      setMaxAtomicSizeSupported(128);
+    else
+      setMaxAtomicSizeSupported(64);
   } else {
     // FIXME: Check that we actually have cmpxchg (i486 or later)
     // FIXME: Check that we actually have cmpxchg8b (i586 or later)
@@ -20537,7 +20539,7 @@ static SDValue lowerAtomicArith(SDValue N, SelectionDAG &DAG,
   // RAUW the chain, but don't worry about the result, as it's unused.
   assert(!N->hasAnyUseOfValue(0));
   DAG.ReplaceAllUsesOfValueWith(N.getValue(1), LockOp.getValue(1));
-  return SDValue();
+  return LockOp;
 }
 
 static SDValue LowerATOMIC_STORE(SDValue Op, SelectionDAG &DAG) {
