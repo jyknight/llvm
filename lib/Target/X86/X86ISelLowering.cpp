@@ -19988,29 +19988,26 @@ static SDValue LowerXALUO(SDValue Op, SelectionDAG &DAG) {
 
 /// Returns true if the operand type is exactly twice the native width, and
 /// the corresponding cmpxchg8b or cmpxchg16b instruction is available.
-/// Used to know whether to use cmpxchg8/16b when expanding atomic operations
-/// (otherwise we leave them alone to become __sync_fetch_and_... calls).
-bool X86TargetLowering::needsCmpXchgNb(Type *MemType) const {
-  unsigned OpWidth = MemType->getPrimitiveSizeInBits();
+/// Used to know whether to use cmpxchg8/16b when expanding atomic operations.
 
-  if (OpWidth == 64)
-    return !Subtarget.is64Bit(); // FIXME this should be Subtarget.hasCmpxchg8b
-  else if (OpWidth == 128)
-    return Subtarget.hasCmpxchg16b();
-  else
-    return false;
-}
+// Atomic operations larger than the normal register size can only be
+// done with cmpxchg8b/16b so expand all of them if required.
 
+// (Note: we don't need to worry about those instructions not being
+// available, because larger-than-supported IR instructions will
+// already have been transformed into __atomic_* libcalls if needed)
 bool X86TargetLowering::shouldExpandAtomicStoreInIR(StoreInst *SI) const {
-  return needsCmpXchgNb(SI->getValueOperand()->getType());
+  unsigned NativeWidth = Subtarget.is64Bit() ? 64 : 32;
+  return SI->getValueOperand()->getType()->getPrimitiveSizeInBits() > NativeWidth;
 }
 
 // Note: this turns large loads into lock cmpxchg8b/16b.
 // FIXME: On 32 bits x86, fild/movq might be faster than lock cmpxchg8b.
 TargetLowering::AtomicExpansionKind
 X86TargetLowering::shouldExpandAtomicLoadInIR(LoadInst *LI) const {
+  unsigned NativeWidth = Subtarget.is64Bit() ? 64 : 32;
   auto PTy = cast<PointerType>(LI->getPointerOperand()->getType());
-  return needsCmpXchgNb(PTy->getElementType()) ? AtomicExpansionKind::CmpXChg
+  return (PTy->getPrimitiveSizeInBits() > NativeWidth) ? AtomicExpansionKind::CmpXChg
                                                : AtomicExpansionKind::None;
 }
 
@@ -20019,12 +20016,9 @@ X86TargetLowering::shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const {
   unsigned NativeWidth = Subtarget.is64Bit() ? 64 : 32;
   Type *MemType = AI->getType();
 
-  // If the operand is too big, we must see if cmpxchg8/16b is available
-  // and default to library calls otherwise.
-  if (MemType->getPrimitiveSizeInBits() > NativeWidth) {
-    return needsCmpXchgNb(MemType) ? AtomicExpansionKind::CmpXChg
-                                   : AtomicExpansionKind::None;
-  }
+  // If the operand is too big, we need to use cmpxchg8b/16b.
+  if (MemType->getPrimitiveSizeInBits() > NativeWidth)
+    return AtomicExpansionKind::CmpXChg;
 
   AtomicRMWInst::BinOp Op = AI->getOperation();
   switch (Op) {

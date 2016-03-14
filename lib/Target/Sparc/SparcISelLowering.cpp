@@ -1603,10 +1603,6 @@ SparcTargetLowering::SparcTargetLowering(TargetMachine &TM,
   }
 
   // ATOMICs.
-  // FIXME: We insert fences for each atomics and generate sub-optimal code
-  // for PSO/TSO. Also, implement other atomicrmw operations.
-
-  setInsertFencesForAtomic(true);
 
   // Atomics are only supported on Sparcv9. (32bit atomics are also
   // supported by the Leon sparcv8 variant, but we don't support that

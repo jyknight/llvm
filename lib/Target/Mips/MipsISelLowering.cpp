@@ -391,7 +391,6 @@ MipsTargetLowering::MipsTargetLowering(const MipsTargetMachine &TM,
   setOperationAction(ISD::STACKSAVE,         MVT::Other, Expand);
   setOperationAction(ISD::STACKRESTORE,      MVT::Other, Expand);
 
-  setInsertFencesForAtomic(true);
   if (Subtarget.isGP64bit())
     setMaxAtomicSizeSupported(64);
   else

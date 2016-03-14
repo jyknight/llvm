@@ -180,6 +180,12 @@ namespace llvm {
       return VT != MVT::f128;
     }
 
+    bool shouldInsertFencesForAtomic(const Instruction *I) const override {
+      // FIXME: We insert fences for each atomics and generate sub-optimal code
+      // for PSO/TSO.
+      return true;
+    }
+
     void ReplaceNodeResults(SDNode *N,
                             SmallVectorImpl<SDValue>& Results,
                             SelectionDAG &DAG) const override;

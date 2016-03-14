@@ -856,14 +856,7 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM,
   setOperationAction(ISD::ATOMIC_FENCE,   MVT::Other,
                      Subtarget->hasAnyDataBarrier() ? Custom : Expand);
 
-  if (Subtarget->hasLdrex()) {
-    // On v8, we have particularly efficient implementations of atomic fences
-    // if they can be combined with nearby atomic loads and stores.
-    if (!Subtarget->hasV8Ops()) {
-      // Automatically insert fences (dmb ish) around ATOMIC_SWAP etc.
-      setInsertFencesForAtomic(true);
-    }
-  } else {
+  if (!Subtarget->hasLdrex()) {
     // Set them all for expansion, which will force libcalls.
     initSyncLibcalls();
     setOperationAction(ISD::ATOMIC_CMP_SWAP,  MVT::i32, Expand);
@@ -11986,9 +11979,10 @@ Instruction* ARMTargetLowering::makeDMB(IRBuilder<> &Builder,
                         Builder.getInt32(10), Builder.getInt32(5)};
       return Builder.CreateCall(MCR, args);
     } else {
-      // Instead of using barriers, atomic accesses on these subtargets use
-      // libcalls.
-      llvm_unreachable("makeDMB on a target so old that it has no barriers");
+      // Instead of barriers, atomic accesses on these subtargets just
+      // use a libcall to __sync_synchronize, so lower directly to a
+      // fence instruction.
+      return Builder.CreateFence(AtomicOrdering::SequentiallyConsistent);
     }
   } else {
     Function *DMB = llvm::Intrinsic::getDeclaration(M, Intrinsic::arm_dmb);
@@ -12003,9 +11997,6 @@ Instruction* ARMTargetLowering::makeDMB(IRBuilder<> &Builder,
 Instruction* ARMTargetLowering::emitLeadingFence(IRBuilder<> &Builder,
                                          AtomicOrdering Ord, bool IsStore,
                                          bool IsLoad) const {
-  if (!getInsertFencesForAtomic())
-    return nullptr;
-
   switch (Ord) {
   case NotAtomic:
   case Unordered:
@@ -12031,9 +12022,6 @@ Instruction* ARMTargetLowering::emitLeadingFence(IRBuilder<> &Builder,
 Instruction* ARMTargetLowering::emitTrailingFence(IRBuilder<> &Builder,
                                           AtomicOrdering Ord, bool IsStore,
                                           bool IsLoad) const {
-  if (!getInsertFencesForAtomic())
-    return nullptr;
-
   switch (Ord) {
   case NotAtomic:
   case Unordered:
@@ -12049,43 +12037,72 @@ Instruction* ARMTargetLowering::emitTrailingFence(IRBuilder<> &Builder,
   llvm_unreachable("Unknown fence ordering in emitTrailingFence");
 }
 
-// Loads and stores less than 64-bits are already atomic; ones above
-// that are unsupported entirely, so make no changes for those. For
-// 64-bit operations, we can replace with ldrexd/strexd on CPUs that
-// have those instructions.
+// For the following "should*Atomic*" routines, the check for
+// !hasLdrex() indicates whether we're planning to expand to __sync
+// libcalls. (If we have neither native atomics, nor plan to expand to
+// libcalls, expansion to __atomic_* routines would've already
+// happened).
+//
+// If we are using libcalls, cmpxchg and rmw operations are
+// desired. If we're using native instructions ll/sc expansions are
+// needed.
+
+// Loads and stores less than 64-bits are intrinsically atomic. For
+// 64-bit operations, we can replace with ldrexd/strexd.
 //
 // FIXME: ldrd and strd are atomic if the CPU has LPAE (e.g. A15 has
 // that guarantee, see DDI0406C ARM architecture reference manual,
-// sections A8.8.72-74 LDRD)
+// sections A8.8.72-74 LDRD); on such CPUs it would be advantageous to
+// not expand 64-bit loads and stores to LL/SC sequences.
 bool ARMTargetLowering::shouldExpandAtomicStoreInIR(StoreInst *SI) const {
+  if (!Subtarget->hasLdrex())
+    return false;
   unsigned Size = SI->getValueOperand()->getType()->getPrimitiveSizeInBits();
-  return Size == 64 && Subtarget->hasLdrex() && !Subtarget->isMClass();
+  return Size == 64;
 }
 
 TargetLowering::AtomicExpansionKind
 ARMTargetLowering::shouldExpandAtomicLoadInIR(LoadInst *LI) const {
-  if (!Subtarget->hasLdrex() || Subtarget->isMClass())
-    return AtomicExpansionKind::None;
   unsigned Size = LI->getType()->getPrimitiveSizeInBits();
-  return (Size == 64) ? AtomicExpansionKind::LLOnly
-      : AtomicExpansionKind::None;
+  if (Size != 64) return AtomicExpansionKind::None;
+
+  // will expand to cmpxchg libcall.
+  if (!Subtarget->hasLdrex())
+    return AtomicExpansionKind::CmpXChg;
+
+  return AtomicExpansionKind::LLOnly;
 }
 
-// For the real atomic operations, we have ldrex/strex up to 32 bits,
-// and up to 64 bits on the non-M profiles
+// For the more complex atomic operations, we use LL/SC instead of
+// cmpxchg.
 TargetLowering::AtomicExpansionKind
 ARMTargetLowering::shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const {
-  if (!Subtarget->hasLdrex()) return AtomicExpansionKind::None;
-
-  unsigned Size = AI->getType()->getPrimitiveSizeInBits();
-  return (Size <= (Subtarget->isMClass() ? 32U : 64U))
-             ? AtomicExpansionKind::LLSC
-             : AtomicExpansionKind::None;
+  if (!Subtarget->hasLdrex())
+    return AtomicExpansionKind::None;
+  return AtomicExpansionKind::LLSC;
 }
 
 bool ARMTargetLowering::shouldExpandAtomicCmpXchgInIR(
     AtomicCmpXchgInst *AI) const {
-  if (!Subtarget->hasLdrex()) return false;
+  if (!Subtarget->hasLdrex())
+    return false;
+  return true;
+}
+
+bool ARMTargetLowering::shouldInsertFencesForAtomic(const Instruction *I) const {
+  // On v8, we have particularly efficient implementations of atomic fences
+  // if they can be combined with nearby atomic loads and stores.
+  if (Subtarget->hasV8Ops())
+    return false;
+
+  // We don't need barriers around the __sync_* libcalls, as those
+  // already have appropriate barriers within. However, Load and
+  // Store are direct, and thus need barriers.
+  if (!Subtarget->hasLdrex()) {
+    return isa<LoadInst>(I) || isa<StoreInst>(I);
+  }
+
+  // Automatically insert fences (dmb ish) around all atomic operations.
   return true;
 }
 

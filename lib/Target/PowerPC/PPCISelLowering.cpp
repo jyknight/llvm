@@ -911,7 +911,6 @@ PPCTargetLowering::PPCTargetLowering(const PPCTargetMachine &TM,
     break;
   }
 
-  setInsertFencesForAtomic(true);
   setMaxAtomicSizeSupported(isPPC64? 64 : 32);
 
   if (Subtarget.enableMachineScheduler())
