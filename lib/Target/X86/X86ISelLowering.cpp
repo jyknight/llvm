@@ -20006,8 +20006,7 @@ bool X86TargetLowering::shouldExpandAtomicStoreInIR(StoreInst *SI) const {
 TargetLowering::AtomicExpansionKind
 X86TargetLowering::shouldExpandAtomicLoadInIR(LoadInst *LI) const {
   unsigned NativeWidth = Subtarget.is64Bit() ? 64 : 32;
-  auto PTy = cast<PointerType>(LI->getPointerOperand()->getType());
-  return (PTy->getPrimitiveSizeInBits() > NativeWidth) ? AtomicExpansionKind::CmpXChg
+  return (LI->getType()->getPrimitiveSizeInBits() > NativeWidth) ? AtomicExpansionKind::CmpXChg
                                                : AtomicExpansionKind::None;
 }
 

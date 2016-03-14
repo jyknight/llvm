@@ -1081,7 +1081,7 @@ public:
   /// Inserts in the IR a target-specific intrinsic specifying a fence.
   /// It is called by AtomicExpandPass before expanding an
   ///   AtomicRMW/AtomicCmpXchg/AtomicStore/AtomicLoad
-  ///   if shouldInsertFencesForAtomic return true.
+  ///   if shouldInsertFencesForAtomic returns true.
   /// RMW and CmpXchg set both IsStore and IsLoad to true.
   /// This function should either return a nullptr, or a pointer to an IR-level
   ///   Instruction*. Even complex fence sequences can be represented by a

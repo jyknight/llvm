@@ -181,8 +181,9 @@ namespace llvm {
     }
 
     bool shouldInsertFencesForAtomic(const Instruction *I) const override {
-      // FIXME: We insert fences for each atomics and generate sub-optimal code
-      // for PSO/TSO.
+      // FIXME: We insert fences for each atomics and generate
+      // sub-optimal code for PSO/TSO. (Approximately nobody uses any
+      // mode but TSO, which makes this even more silly)
       return true;
     }
 

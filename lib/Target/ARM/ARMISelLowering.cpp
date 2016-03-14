@@ -857,7 +857,9 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM,
                      Subtarget->hasAnyDataBarrier() ? Custom : Expand);
 
   if (!Subtarget->hasLdrex()) {
-    // Set them all for expansion, which will force libcalls.
+    // Set everything but ATOMIC_LOAD/ATOMIC_STORE for expansion,
+    // which will force libcalls. (load and store are atomic on all
+    // arm chips, with appropriate barriers for the ordering mode.)
     initSyncLibcalls();
     setOperationAction(ISD::ATOMIC_CMP_SWAP,  MVT::i32, Expand);
     setOperationAction(ISD::ATOMIC_SWAP,      MVT::i32, Expand);
@@ -871,11 +873,6 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::ATOMIC_LOAD_MAX, MVT::i32, Expand);
     setOperationAction(ISD::ATOMIC_LOAD_UMIN, MVT::i32, Expand);
     setOperationAction(ISD::ATOMIC_LOAD_UMAX, MVT::i32, Expand);
-    // Mark ATOMIC_LOAD and ATOMIC_STORE custom so we can handle the
-    // Unordered/Monotonic case. They fall through to Expand in other
-    // cases.
-    setOperationAction(ISD::ATOMIC_LOAD, MVT::i32, Custom);
-    setOperationAction(ISD::ATOMIC_STORE, MVT::i32, Custom);
   }
 
   setOperationAction(ISD::PREFETCH,         MVT::Other, Custom);
@@ -6918,16 +6915,6 @@ void ARMTargetLowering::ExpandDIV_Windows(
   Results.push_back(Upper);
 }
 
-static SDValue LowerAtomicLoadStore(SDValue Op, SelectionDAG &DAG) {
-  // Monotonic load/store is legal for all targets
-  if (cast<AtomicSDNode>(Op)->getOrdering() <= Monotonic)
-    return Op;
-
-  // Acquire/Release load/store is not legal for targets without a
-  // dmb or equivalent available.
-  return SDValue();
-}
-
 static void ReplaceREADCYCLECOUNTER(SDNode *N,
                                     SmallVectorImpl<SDValue> &Results,
                                     SelectionDAG &DAG,
@@ -7019,8 +7006,6 @@ SDValue ARMTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::SSUBO:
   case ISD::USUBO:
     return LowerXALUO(Op, DAG);
-  case ISD::ATOMIC_LOAD:
-  case ISD::ATOMIC_STORE:  return LowerAtomicLoadStore(Op, DAG);
   case ISD::FSINCOS:       return LowerFSINCOS(Op, DAG);
   case ISD::SDIVREM:
   case ISD::UDIVREM:       return LowerDivRem(Op, DAG);
@@ -12055,8 +12040,6 @@ Instruction* ARMTargetLowering::emitTrailingFence(IRBuilder<> &Builder,
 // sections A8.8.72-74 LDRD); on such CPUs it would be advantageous to
 // not expand 64-bit loads and stores to LL/SC sequences.
 bool ARMTargetLowering::shouldExpandAtomicStoreInIR(StoreInst *SI) const {
-  if (!Subtarget->hasLdrex())
-    return false;
   unsigned Size = SI->getValueOperand()->getType()->getPrimitiveSizeInBits();
   return Size == 64;
 }
@@ -12066,8 +12049,8 @@ ARMTargetLowering::shouldExpandAtomicLoadInIR(LoadInst *LI) const {
   unsigned Size = LI->getType()->getPrimitiveSizeInBits();
   if (Size != 64) return AtomicExpansionKind::None;
 
-  // will expand to cmpxchg libcall.
   if (!Subtarget->hasLdrex())
+    // will expand to cmpxchg libcall.
     return AtomicExpansionKind::CmpXChg;
 
   return AtomicExpansionKind::LLOnly;
@@ -12097,7 +12080,7 @@ bool ARMTargetLowering::shouldInsertFencesForAtomic(const Instruction *I) const 
 
   // We don't need barriers around the __sync_* libcalls, as those
   // already have appropriate barriers within. However, Load and
-  // Store are direct, and thus need barriers.
+  // Store are handled directly, and thus need barriers.
   if (!Subtarget->hasLdrex()) {
     return isa<LoadInst>(I) || isa<StoreInst>(I);
   }
