@@ -7,6 +7,7 @@
 target datalayout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
 
 define void @func(i32 %argc, i8** %argv) nounwind {
+; CHECK-LABEL: func:
 entry:
 	%argc.addr = alloca i32		; <i32*> [#uses=1]
 	%argv.addr = alloca i8**		; <i8***> [#uses=1]
@@ -168,6 +169,7 @@ entry:
 }
 
 define void @func2() nounwind {
+; CHECK-LABEL: func2:
 entry:
   %val = alloca i16
   %old = alloca i16
@@ -213,6 +215,7 @@ entry:
 }
 
 define void @func3() nounwind {
+; CHECK-LABEL: func3:
 entry:
   %val = alloca i8
   %old = alloca i8
@@ -257,7 +260,7 @@ entry:
   ret void
 }
 
-; CHECK: func4
+; CHECK-LABEL: func4
 ; This function should not need to use callee-saved registers.
 ; rdar://problem/12203728
 ; CHECK-NOT: r4
@@ -269,7 +272,6 @@ entry:
 
 define i32 @test_cmpxchg_fail_order(i32 *%addr, i32 %desired, i32 %new) {
 ; CHECK-LABEL: test_cmpxchg_fail_order:
-
   %pair = cmpxchg i32* %addr, i32 %desired, i32 %new seq_cst monotonic
   %oldval = extractvalue { i32, i1 } %pair, 0
 ; CHECK-ARMV7:     ldrex   [[OLDVAL:r[0-9]+]], [r[[ADDR:[0-9]+]]]
@@ -309,7 +311,6 @@ define i32 @test_cmpxchg_fail_order(i32 *%addr, i32 %desired, i32 %new) {
 
 define i32 @test_cmpxchg_fail_order1(i32 *%addr, i32 %desired, i32 %new) {
 ; CHECK-LABEL: test_cmpxchg_fail_order1:
-
   %pair = cmpxchg i32* %addr, i32 %desired, i32 %new acquire acquire
   %oldval = extractvalue { i32, i1 } %pair, 0
 ; CHECK-NOT:     dmb ish

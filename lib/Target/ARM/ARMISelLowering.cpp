@@ -837,14 +837,11 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM,
     setOperationAction(ISD::DYNAMIC_STACKALLOC, MVT::i32, Expand);
 
   // OSes that have lock-free atomics via kernel support can support
-  // large atomics regardless of the hardware (expanded to __sync_*
-  // libcalls as needed)
-  if (Subtarget->isTargetDarwin() || Subtarget->isTargetLinux()) {
-    setMaxAtomicSizeSupported(64);
-  } else if (Subtarget->hasLdrex()) {
-    // Processors that support ldrex get native lock-free
-    // atomics.
-
+  // atomics regardless of the hardware (expanded to __sync_* libcalls
+  // as needed).
+  //
+  // And processors that support ldrex get native lock-free atomics.
+  if (Subtarget->isTargetDarwin() || Subtarget->isTargetLinux() || Subtarget->hasLdrex()) {
     // The Cortex-M only supports up to 32bit operations, while
     // everything else supports 64-bit (via the ldrexd intrinsic
     // expansion).
@@ -868,6 +865,7 @@ ARMTargetLowering::ARMTargetLowering(const TargetMachine &TM,
     }
   } else {
     // Set them all for expansion, which will force libcalls.
+    initSyncLibcalls();
     setOperationAction(ISD::ATOMIC_CMP_SWAP,  MVT::i32, Expand);
     setOperationAction(ISD::ATOMIC_SWAP,      MVT::i32, Expand);
     setOperationAction(ISD::ATOMIC_LOAD_ADD,  MVT::i32, Expand);

@@ -1186,7 +1186,7 @@ bool AtomicExpand::expandAtomicOpToLibcall(
   // And, then, the generic variants. They look like the following:
   //  void  __atomic_load(size_t size, void *ptr, void *ret, int ordering)
   //  void  __atomic_store(size_t size, void *ptr, void *val, int ordering)
-  //  iN    __atomic_exchange(size_t size, void *ptr, void *val, void *ret,
+  //  void  __atomic_exchange(size_t size, void *ptr, void *val, void *ret,
   //                          int ordering)
   //  bool  __atomic_compare_exchange(size_t size, void *ptr, void *expected,
   //                                  void *desired, int success_order,
