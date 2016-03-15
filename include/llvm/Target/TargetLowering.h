@@ -1046,6 +1046,12 @@ public:
   /// \name Helpers for atomic expansion.
   /// @{
 
+  /// Returns the maximum atomic operation size (in bits) supported by
+  /// the backend. Atomic operations greater than this size (as well
+  /// as ones that are not naturally aligned), will be expanded by
+  /// AtomicExpandPass into an __atomic_* library call.
+  unsigned getMaxAtomicSizeSupported() const { return MaxAtomicSizeSupported; }
+
   /// Whether AtomicExpandPass should automatically insert fences and reduce
   /// ordering for this atomic. This should be true for most architectures with
   /// weak memory ordering. Defaults to false.
@@ -1434,6 +1440,14 @@ protected:
   /// Set the minimum stack alignment of an argument (in log2(bytes)).
   void setMinStackArgumentAlignment(unsigned Align) {
     MinStackArgumentAlignment = Align;
+  }
+
+  /// Set the maximum atomic operation size supported by the
+  /// backend. Atomic operations greater than this size (as well as
+  /// ones that are not naturally aligned), will be expanded by
+  /// AtomicExpandPass into an __atomic_* library call.
+  void setMaxAtomicSizeSupported(unsigned Size) {
+    MaxAtomicSizeSupported = Size;
   }
 
 public:
@@ -1845,6 +1859,9 @@ private:
   /// The preferred loop alignment.
   unsigned PrefLoopAlignment;
 
+  /// Size in bits of the maximum atomics size the backend supports.
+  /// Accesses larger than this will be expanded by AtomicExpandPass.
+  unsigned MaxAtomicSizeSupported;
 
   /// If set to a physical register, this specifies the register that
   /// llvm.savestack/llvm.restorestack should save and restore.
