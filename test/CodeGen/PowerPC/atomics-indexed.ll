@@ -34,8 +34,8 @@ define i32 @load_x_i32_monotonic([100000 x i32]* %mem) {
 }
 define i64 @load_x_i64_unordered([100000 x i64]* %mem) {
 ; CHECK-LABEL: load_x_i64_unordered
-; PPC32: __sync_
-; PPC64-NOT: __sync_
+; PPC32: __atomic_
+; PPC64-NOT: __atomic_
 ; PPC64: ldx
 ; CHECK-NOT: sync
   %ptr = getelementptr inbounds [100000 x i64], [100000 x i64]* %mem, i64 0, i64 90000
@@ -71,8 +71,8 @@ define void @store_x_i32_monotonic([100000 x i32]* %mem) {
 define void @store_x_i64_unordered([100000 x i64]* %mem) {
 ; CHECK-LABEL: store_x_i64_unordered
 ; CHECK-NOT: sync
-; PPC32: __sync_
-; PPC64-NOT: __sync_
+; PPC32: __atomic_
+; PPC64-NOT: __atomic_
 ; PPC64: stdx
   %ptr = getelementptr inbounds [100000 x i64], [100000 x i64]* %mem, i64 0, i64 90000
   store atomic i64 42, i64* %ptr unordered, align 8

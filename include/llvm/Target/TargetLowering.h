@@ -162,6 +162,9 @@ protected:
   /// \brief Initialize all of the actions to default values.
   void initActions();
 
+  /// Allow lowering into __sync_* libcalls.
+  void initSyncLibcalls();
+
 public:
   const TargetMachine &getTargetMachine() const { return TM; }
 

@@ -97,3 +97,12 @@ entry:
 ; CHECK-THUMBV7-NEXT: clrex
 ; CHECK-THUMBV7-NEXT: movs r0, #0
 ; CHECK-THUMBV7-NEXT: bx lr
+
+
+
+define zeroext i1 @test_cmpxchg_res_i64(i64* %addr, i64 %desired, i64 zeroext %new) {
+entry:
+  %0 = cmpxchg i64* %addr, i64 %desired, i64 %new monotonic monotonic
+  %1 = extractvalue { i64, i1 } %0, 1
+  ret i1 %1
+}

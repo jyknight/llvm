@@ -12,7 +12,9 @@ define void @test1(i32* %ptr, i32 %val1) {
 ; ARM-NEXT: str
 ; ARM-NEXT: dmb {{ish$}}
 ; THUMBONE-LABEL: test1
-; THUMBONE: __sync_lock_test_and_set_4
+; THUMBONE: ___sync_synchronize
+; THUMBONE-NEXT: str
+; THUMBONE-NEXT: ___sync_synchronize
 ; THUMBTWO-LABEL: test1
 ; THUMBTWO: dmb {{ish$}}
 ; THUMBTWO-NEXT: str
@@ -34,7 +36,8 @@ define i32 @test2(i32* %ptr) {
 ; ARM: ldr
 ; ARM-NEXT: dmb {{ish$}}
 ; THUMBONE-LABEL: test2
-; THUMBONE: __sync_val_compare_and_swap_4
+; THUMBONE: ldr
+; THUMBONE: __sync_synchronize
 ; THUMBTWO-LABEL: test2
 ; THUMBTWO: ldr
 ; THUMBTWO-NEXT: dmb {{ish$}}
@@ -83,8 +86,11 @@ define void @test3(i8* %ptr1, i8* %ptr2) {
 
 define void @test4(i8* %ptr1, i8* %ptr2) {
 ; THUMBONE-LABEL: test4
-; THUMBONE: ___sync_val_compare_and_swap_1
-; THUMBONE: ___sync_lock_test_and_set_1
+; THUMBONE:      ldrb
+; THUMBONE-NEXT: ___sync_synchronize
+; THUMBONE-NEXT: ___sync_synchronize
+; THUMBONE-NEXT: strb
+; THUMBONE-NEXT: ___sync_synchronize
 ; ARMV6-LABEL: test4
 ; THUMBM-LABEL: test4
   %val = load atomic i8, i8* %ptr1 seq_cst, align 1

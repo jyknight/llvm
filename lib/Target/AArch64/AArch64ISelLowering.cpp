@@ -636,6 +636,8 @@ AArch64TargetLowering::AArch64TargetLowering(const TargetMachine &TM,
   // Prefer likely predicted branches to selects on out-of-order cores.
   if (Subtarget->isCortexA57() || Subtarget->isKryo())
     PredictableSelectIsExpensive = true;
+
+  setMaxAtomicSizeSupported(128);
 }
 
 void AArch64TargetLowering::addTypeForNEON(EVT VT, EVT PromotedBitwiseVT) {
@@ -10115,28 +10117,25 @@ AArch64TargetLowering::getPreferredVectorAction(EVT VT) const {
   return TargetLoweringBase::getPreferredVectorAction(VT);
 }
 
-// Loads and stores less than 128-bits are already atomic; ones above that
-// are doomed anyway, so defer to the default libcall and blame the OS when
-// things go wrong.
+// Loads and stores less than 128-bits are already atomic; 128-bit
+// ones can only be done via ldaxp/stlxp sequences, so must be expanded.
 bool AArch64TargetLowering::shouldExpandAtomicStoreInIR(StoreInst *SI) const {
   unsigned Size = SI->getValueOperand()->getType()->getPrimitiveSizeInBits();
   return Size == 128;
 }
 
-// Loads and stores less than 128-bits are already atomic; ones above that
-// are doomed anyway, so defer to the default libcall and blame the OS when
-// things go wrong.
+// Loads and stores less than 128-bits are already atomic; 128-bit
+// ones can only be done via ldaxp/stlxp sequences, so must be expanded.
 TargetLowering::AtomicExpansionKind
 AArch64TargetLowering::shouldExpandAtomicLoadInIR(LoadInst *LI) const {
   unsigned Size = LI->getType()->getPrimitiveSizeInBits();
   return Size == 128 ? AtomicExpansionKind::LLSC : AtomicExpansionKind::None;
 }
 
-// For the real atomic operations, we have ldxr/stxr up to 128 bits,
+// Expand RWM operations to ldrex/strex instructions.
 TargetLowering::AtomicExpansionKind
 AArch64TargetLowering::shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const {
-  unsigned Size = AI->getType()->getPrimitiveSizeInBits();
-  return Size <= 128 ? AtomicExpansionKind::LLSC : AtomicExpansionKind::None;
+  return AtomicExpansionKind::LLSC;
 }
 
 bool AArch64TargetLowering::shouldExpandAtomicCmpXchgInIR(

@@ -1608,8 +1608,6 @@ SparcTargetLowering::SparcTargetLowering(TargetMachine &TM,
   // yet.)
   if (Subtarget->isV9())
     setMaxAtomicSizeSupported(64);
-  else
-    setMaxAtomicSizeSupported(0);
 
   setOperationAction(ISD::ATOMIC_SWAP, MVT::i32, Legal);
   setOperationAction(ISD::ATOMIC_CMP_SWAP, MVT::i32,
@@ -1618,15 +1616,9 @@ SparcTargetLowering::SparcTargetLowering(TargetMachine &TM,
 
   setOperationAction(ISD::ATOMIC_FENCE, MVT::Other, Legal);
 
-  // Custom Lower Atomic LOAD/STORE
-  setOperationAction(ISD::ATOMIC_LOAD, MVT::i32, Custom);
-  setOperationAction(ISD::ATOMIC_STORE, MVT::i32, Custom);
-
   if (Subtarget->is64Bit()) {
     setOperationAction(ISD::ATOMIC_CMP_SWAP, MVT::i64, Legal);
     setOperationAction(ISD::ATOMIC_SWAP, MVT::i64, Legal);
-    setOperationAction(ISD::ATOMIC_LOAD, MVT::i64, Custom);
-    setOperationAction(ISD::ATOMIC_STORE, MVT::i64, Custom);
   }
 
   if (!Subtarget->isV9()) {
@@ -2927,15 +2919,6 @@ static SDValue LowerUMULO_SMULO(SDValue Op, SelectionDAG &DAG,
   return DAG.getMergeValues(Ops, dl);
 }
 
-static SDValue LowerATOMIC_LOAD_STORE(SDValue Op, SelectionDAG &DAG) {
-  // Monotonic load/stores are legal.
-  if (cast<AtomicSDNode>(Op)->getOrdering() <= Monotonic)
-    return Op;
-
-  // Otherwise, expand with a fence.
-  return SDValue();
-}
-
 SDValue SparcTargetLowering::
 LowerOperation(SDValue Op, SelectionDAG &DAG) const {
 
@@ -2992,8 +2975,6 @@ LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::SUBE:               return LowerADDC_ADDE_SUBC_SUBE(Op, DAG);
   case ISD::UMULO:
   case ISD::SMULO:              return LowerUMULO_SMULO(Op, DAG, *this);
-  case ISD::ATOMIC_LOAD:
-  case ISD::ATOMIC_STORE:       return LowerATOMIC_LOAD_STORE(Op, DAG);
   }
 }
 

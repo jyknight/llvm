@@ -822,11 +822,6 @@ PPCTargetLowering::PPCTargetLowering(const PPCTargetMachine &TM,
 
   setOperationAction(ISD::READCYCLECOUNTER, MVT::i64, isPPC64 ? Legal : Custom);
 
-  if (!isPPC64) {
-    setOperationAction(ISD::ATOMIC_LOAD,  MVT::i64, Expand);
-    setOperationAction(ISD::ATOMIC_STORE, MVT::i64, Expand);
-  }
-
   setBooleanContents(ZeroOrOneBooleanContent);
 
   if (Subtarget.hasAltivec()) {
@@ -916,6 +911,7 @@ PPCTargetLowering::PPCTargetLowering(const PPCTargetMachine &TM,
     break;
   }
 
+  setMaxAtomicSizeSupported(isPPC64 ? 64 : 32);
 
   if (Subtarget.enableMachineScheduler())
     setSchedulingPreference(Sched::Source);
