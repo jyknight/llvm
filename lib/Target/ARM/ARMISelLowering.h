@@ -493,10 +493,6 @@ namespace llvm {
     ///
     unsigned ARMPCLabelIndex;
 
-    // TODO: remove this, and have shouldInsertFencesForAtomic do the proper
-    // check.
-    bool InsertFencesForAtomic;
-
     void addTypeForNEON(MVT VT, MVT PromotedLdStVT, MVT PromotedBitwiseVT);
     void addDRTypeForNEON(MVT VT);
     void addQRTypeForNEON(MVT VT);

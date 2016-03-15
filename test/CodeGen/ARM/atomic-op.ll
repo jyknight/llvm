@@ -7,6 +7,7 @@
 target datalayout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
 
 define void @func(i32 %argc, i8** %argv) nounwind {
+; CHECK-LABEL: func:
 entry:
 	%argc.addr = alloca i32		; <i32*> [#uses=1]
 	%argv.addr = alloca i8**		; <i8***> [#uses=1]
@@ -153,6 +154,7 @@ entry:
 }
 
 define void @func2() nounwind {
+; CHECK-LABEL: func2:
 entry:
   %val = alloca i16
   %old = alloca i16
@@ -194,6 +196,7 @@ entry:
 }
 
 define void @func3() nounwind {
+; CHECK-LABEL: func3:
 entry:
   %val = alloca i8
   %old = alloca i8
@@ -234,7 +237,7 @@ entry:
   ret void
 }
 
-; CHECK: func4
+; CHECK-LABEL: func4:
 ; This function should not need to use callee-saved registers.
 ; rdar://problem/12203728
 ; CHECK-NOT: r4
@@ -246,7 +249,6 @@ entry:
 
 define i32 @test_cmpxchg_fail_order(i32 *%addr, i32 %desired, i32 %new) {
 ; CHECK-LABEL: test_cmpxchg_fail_order:
-
   %pair = cmpxchg i32* %addr, i32 %desired, i32 %new seq_cst monotonic
   %oldval = extractvalue { i32, i1 } %pair, 0
 ; CHECK-ARMV7:     ldrex   [[OLDVAL:r[0-9]+]], [r[[ADDR:[0-9]+]]]
@@ -286,7 +288,6 @@ define i32 @test_cmpxchg_fail_order(i32 *%addr, i32 %desired, i32 %new) {
 
 define i32 @test_cmpxchg_fail_order1(i32 *%addr, i32 %desired, i32 %new) {
 ; CHECK-LABEL: test_cmpxchg_fail_order1:
-
   %pair = cmpxchg i32* %addr, i32 %desired, i32 %new acquire acquire
   %oldval = extractvalue { i32, i1 } %pair, 0
 ; CHECK-NOT:     dmb ish
@@ -308,7 +309,7 @@ define i32 @test_cmpxchg_fail_order1(i32 *%addr, i32 %desired, i32 %new) {
 }
 
 define i32 @load_load_add_acquire(i32* %mem1, i32* %mem2) nounwind {
-; CHECK-LABEL: load_load_add_acquire
+; CHECK-LABEL: load_load_add_acquire:
   %val1 = load atomic i32, i32* %mem1 acquire, align 4
   %val2 = load atomic i32, i32* %mem2 acquire, align 4
   %tmp = add i32 %val1, %val2
@@ -332,7 +333,7 @@ define i32 @load_load_add_acquire(i32* %mem1, i32* %mem2) nounwind {
 }
 
 define void @store_store_release(i32* %mem1, i32 %val1, i32* %mem2, i32 %val2) {
-; CHECK-LABEL: store_store_release
+; CHECK-LABEL: store_store_release:
   store atomic i32 %val1, i32* %mem1 release, align 4
   store atomic i32 %val2, i32* %mem2 release, align 4
 
@@ -341,19 +342,21 @@ define void @store_store_release(i32* %mem1, i32 %val1, i32* %mem2, i32 %val2) {
 ; CHECK: dmb
 ; CHECK: str r3, [r2]
 
-; CHECK-T1: ___sync_lock_test_and_set
-; CHECK-T1: ___sync_lock_test_and_set
+; CHECK-M0: dmb
+; CHECK-M0: str r1, [r0]
+; CHECK-M0: dmb
+; CHECK-M0: str r3, [r2]
 
 ; CHECK-BAREMETAL-NOT: dmb
-; CHECK-BAREMTEAL: str r1, [r0]
+; CHECK-BAREMETAL: str r1, [r0]
 ; CHECK-BAREMETAL-NOT: dmb
-; CHECK-BAREMTEAL: str r3, [r2]
+; CHECK-BAREMETAL: str r3, [r2]
 
   ret void
 }
 
 define void @load_fence_store_monotonic(i32* %mem1, i32* %mem2) {
-; CHECK-LABEL: load_fence_store_monotonic
+; CHECK-LABEL: load_fence_store_monotonic:
   %val = load atomic i32, i32* %mem1 monotonic, align 4
   fence seq_cst
   store atomic i32 %val, i32* %mem2 monotonic, align 4

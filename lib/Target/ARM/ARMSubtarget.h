@@ -492,8 +492,10 @@ public:
   /// True for some subtargets at > -O0.
   bool enablePostRAScheduler() const override;
 
-  // enableAtomicExpand- True if we need to expand our atomics.
-  bool enableAtomicExpand() const override;
+  // True for targets that support atomic ldrex/strex.
+  bool hasLdrex() const {
+    return HasV6Ops && (!InThumbMode || HasV8MBaselineOps);
+  }
 
   /// getInstrItins - Return the instruction itineraries based on subtarget
   /// selection.

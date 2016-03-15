@@ -1713,6 +1713,7 @@ HexagonTargetLowering::HexagonTargetLowering(const TargetMachine &TM,
   setPrefLoopAlignment(4);
   setPrefFunctionAlignment(4);
   setMinFunctionAlignment(2);
+  setMaxAtomicSizeInBitsSupported(64);
   setStackPointerRegisterToSaveRestore(HRI.getStackRegister());
 
   if (EnableHexSDNodeSched)
@@ -3107,17 +3108,4 @@ Value *HexagonTargetLowering::emitStoreConditional(IRBuilder<> &Builder,
   Value *Cmp = Builder.CreateICmpEQ(Call, Builder.getInt32(0), "");
   Value *Ext = Builder.CreateZExt(Cmp, Type::getInt32Ty(M->getContext()));
   return Ext;
-}
-
-TargetLowering::AtomicExpansionKind
-HexagonTargetLowering::shouldExpandAtomicLoadInIR(LoadInst *LI) const {
-  // Do not expand loads and stores that don't exceed 64 bits.
-  return LI->getType()->getPrimitiveSizeInBits() > 64
-             ? AtomicExpansionKind::LLOnly
-             : AtomicExpansionKind::None;
-}
-
-bool HexagonTargetLowering::shouldExpandAtomicStoreInIR(StoreInst *SI) const {
-  // Do not expand loads and stores that don't exceed 64 bits.
-  return SI->getValueOperand()->getType()->getPrimitiveSizeInBits() > 64;
 }

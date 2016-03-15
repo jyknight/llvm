@@ -63,6 +63,8 @@ BPFTargetLowering::BPFTargetLowering(const TargetMachine &TM,
 
   setStackPointerRegisterToSaveRestore(BPF::R11);
 
+  setMaxAtomicSizeInBitsSupported(64);
+
   setOperationAction(ISD::BR_CC, MVT::i64, Custom);
   setOperationAction(ISD::BR_JT, MVT::Other, Expand);
   setOperationAction(ISD::BRIND, MVT::Other, Expand);

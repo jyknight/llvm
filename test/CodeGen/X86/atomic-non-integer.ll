@@ -34,7 +34,7 @@ define void @store_double(double* %fptr, double %v) {
 
 define void @store_fp128(fp128* %fptr, fp128 %v) {
 ; CHECK-LABEL: @store_fp128
-; CHECK: callq	__sync_lock_test_and_set_16
+; CHECK: callq	__atomic_store_16
   store atomic fp128 %v, fp128* %fptr unordered, align 16
   ret void
 }
@@ -66,7 +66,7 @@ define double @load_double(double* %fptr) {
 
 define fp128 @load_fp128(fp128* %fptr) {
 ; CHECK-LABEL: @load_fp128
-; CHECK: callq	__sync_val_compare_and_swap_16
+; CHECK: callq	__atomic_load_16
   %v = load atomic fp128, fp128* %fptr unordered, align 16
   ret fp128 %v
 }

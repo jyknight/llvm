@@ -173,7 +173,7 @@ bool atomicSizeSupported(const TargetLowering *TLI, Inst *I) {
 } // end anonymous namespace
 
 bool AtomicExpand::runOnFunction(Function &F) {
-  if (!TM || !TM->getSubtargetImpl(F)->enableAtomicExpand())
+  if (!TM)
     return false;
   TLI = TM->getSubtargetImpl(F)->getTargetLowering();
 

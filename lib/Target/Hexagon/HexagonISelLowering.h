@@ -254,11 +254,12 @@ bool isPositiveHalfWord(SDNode *N);
         AtomicOrdering Ord) const override;
     Value *emitStoreConditional(IRBuilder<> &Builder, Value *Val,
         Value *Addr, AtomicOrdering Ord) const override;
-    AtomicExpansionKind shouldExpandAtomicLoadInIR(LoadInst *LI) const override;
-    bool shouldExpandAtomicStoreInIR(StoreInst *SI) const override;
     AtomicExpansionKind
     shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const override {
       return AtomicExpansionKind::LLSC;
+    }
+    bool shouldExpandAtomicCmpXchgInIR(AtomicCmpXchgInst *AI) const override {
+      return true;
     }
 
   protected:

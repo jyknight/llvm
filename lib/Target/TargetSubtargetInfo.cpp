@@ -28,10 +28,6 @@ TargetSubtargetInfo::TargetSubtargetInfo(
 
 TargetSubtargetInfo::~TargetSubtargetInfo() {}
 
-bool TargetSubtargetInfo::enableAtomicExpand() const {
-  return true;
-}
-
 bool TargetSubtargetInfo::enableMachineScheduler() const {
   return false;
 }

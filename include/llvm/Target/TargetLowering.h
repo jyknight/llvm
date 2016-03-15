@@ -165,6 +165,13 @@ protected:
   /// \brief Initialize all of the actions to default values.
   void initActions();
 
+  /// Allow lowering into __sync_* libcalls. Without calling this, the
+  /// __sync calls do not have names defined, and attempting to use
+  /// them from your backend will result in an error. (These must be
+  /// enabled explicitly only in order to avoid them being generated
+  /// accidentally on targets that don't support them.)
+  void initSyncLibcalls();
+
 public:
   const TargetMachine &getTargetMachine() const { return TM; }
 

@@ -128,6 +128,10 @@ Mips16TargetLowering::Mips16TargetLowering(const MipsTargetMachine &TM,
   if (!Subtarget.useSoftFloat())
     setMips16HardFloatLibCalls();
 
+  // Call __sync_* library calls for most atomic instructions; the
+  // MIPS16 ISA has no ll/sc or fence instructions, but it can call mips32
+  // functions to do the work.
+  initSyncLibcalls();
   setOperationAction(ISD::ATOMIC_FENCE,       MVT::Other, Expand);
   setOperationAction(ISD::ATOMIC_CMP_SWAP,    MVT::i32,   Expand);
   setOperationAction(ISD::ATOMIC_SWAP,        MVT::i32,   Expand);

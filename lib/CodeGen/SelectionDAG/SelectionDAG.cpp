@@ -1435,6 +1435,10 @@ SDValue SelectionDAG::getValueType(EVT VT) {
 }
 
 SDValue SelectionDAG::getExternalSymbol(const char *Sym, EVT VT) {
+  if (!Sym)
+    report_fatal_error(
+        "Attempted to use null symbol in SelectionDAG::getExternalSymbol!");
+
   SDNode *&N = ExternalSymbols[Sym];
   if (N) return SDValue(N, 0);
   N = newSDNode<ExternalSymbolSDNode>(false, Sym, 0, VT);
@@ -1453,6 +1457,10 @@ SDValue SelectionDAG::getMCSymbol(MCSymbol *Sym, EVT VT) {
 
 SDValue SelectionDAG::getTargetExternalSymbol(const char *Sym, EVT VT,
                                               unsigned char TargetFlags) {
+  if (!Sym)
+    report_fatal_error("Attempted to use null symbol in "
+                       "SelectionDAG::getTargetExternalSymbol!");
+
   SDNode *&N =
     TargetExternalSymbols[std::pair<std::string,unsigned char>(Sym,
                                                                TargetFlags)];

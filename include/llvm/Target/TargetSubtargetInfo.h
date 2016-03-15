@@ -144,9 +144,6 @@ public:
   /// which is the preferred way to influence this.
   virtual bool enablePostRAScheduler() const;
 
-  /// \brief True if the subtarget should run the atomic expansion pass.
-  virtual bool enableAtomicExpand() const;
-
   /// \brief Override generic scheduling policy within a region.
   ///
   /// This is a convenient way for targets that don't provide any custom

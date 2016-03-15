@@ -84,6 +84,17 @@ X86TargetLowering::X86TargetLowering(const X86TargetMachine &TM,
   // X86-SSE is even stranger. It uses -1 or 0 for vector masks.
   setBooleanVectorContents(ZeroOrNegativeOneBooleanContent);
 
+  if (Subtarget.is64Bit()) {
+    if (Subtarget.hasCmpxchg16b())
+      setMaxAtomicSizeInBitsSupported(128);
+    else
+      setMaxAtomicSizeInBitsSupported(64);
+  } else {
+    // FIXME: Check that we actually have cmpxchg (i486 or later)
+    // FIXME: Check that we actually have cmpxchg8b (i586 or later)
+    setMaxAtomicSizeInBitsSupported(64);
+  }
+
   // For 64-bit, since we have so many registers, use the ILP scheduler.
   // For 32-bit, use the register pressure specific scheduling.
   // For Atom, always use ILP scheduling.
@@ -20417,32 +20428,27 @@ static SDValue LowerXALUO(SDValue Op, SelectionDAG &DAG) {
   return DAG.getNode(ISD::MERGE_VALUES, DL, N->getVTList(), Sum, SetCC);
 }
 
-/// Returns true if the operand type is exactly twice the native width, and
-/// the corresponding cmpxchg8b or cmpxchg16b instruction is available.
-/// Used to know whether to use cmpxchg8/16b when expanding atomic operations
-/// (otherwise we leave them alone to become __sync_fetch_and_... calls).
-bool X86TargetLowering::needsCmpXchgNb(Type *MemType) const {
-  unsigned OpWidth = MemType->getPrimitiveSizeInBits();
+// Atomic operations larger than the normal register size can only be
+// done with cmpxchg8b/16b, so expand loads/stores to cmpxchg if
+// required.
 
-  if (OpWidth == 64)
-    return !Subtarget.is64Bit(); // FIXME this should be Subtarget.hasCmpxchg8b
-  else if (OpWidth == 128)
-    return Subtarget.hasCmpxchg16b();
-  else
-    return false;
-}
-
+// (Note: we don't need to worry about those instructions not being
+// available, because larger-than-supported IR instructions will
+// already have been transformed into __atomic_* libcalls if needed)
 bool X86TargetLowering::shouldExpandAtomicStoreInIR(StoreInst *SI) const {
-  return needsCmpXchgNb(SI->getValueOperand()->getType());
+  unsigned NativeWidth = Subtarget.is64Bit() ? 64 : 32;
+  return SI->getValueOperand()->getType()->getPrimitiveSizeInBits() >
+         NativeWidth;
 }
 
 // Note: this turns large loads into lock cmpxchg8b/16b.
 // FIXME: On 32 bits x86, fild/movq might be faster than lock cmpxchg8b.
 TargetLowering::AtomicExpansionKind
 X86TargetLowering::shouldExpandAtomicLoadInIR(LoadInst *LI) const {
-  auto PTy = cast<PointerType>(LI->getPointerOperand()->getType());
-  return needsCmpXchgNb(PTy->getElementType()) ? AtomicExpansionKind::CmpXChg
-                                               : AtomicExpansionKind::None;
+  unsigned NativeWidth = Subtarget.is64Bit() ? 64 : 32;
+  return (LI->getType()->getPrimitiveSizeInBits() > NativeWidth)
+             ? AtomicExpansionKind::CmpXChg
+             : AtomicExpansionKind::None;
 }
 
 TargetLowering::AtomicExpansionKind
@@ -20450,12 +20456,9 @@ X86TargetLowering::shouldExpandAtomicRMWInIR(AtomicRMWInst *AI) const {
   unsigned NativeWidth = Subtarget.is64Bit() ? 64 : 32;
   Type *MemType = AI->getType();
 
-  // If the operand is too big, we must see if cmpxchg8/16b is available
-  // and default to library calls otherwise.
-  if (MemType->getPrimitiveSizeInBits() > NativeWidth) {
-    return needsCmpXchgNb(MemType) ? AtomicExpansionKind::CmpXChg
-                                   : AtomicExpansionKind::None;
-  }
+  // If the operand is too big, we need to use cmpxchg8b/16b.
+  if (MemType->getPrimitiveSizeInBits() > NativeWidth)
+    return AtomicExpansionKind::CmpXChg;
 
   AtomicRMWInst::BinOp Op = AI->getOperation();
   switch (Op) {
@@ -20616,7 +20619,7 @@ static SDValue LowerCMP_SWAP(SDValue Op, const X86Subtarget &Subtarget,
   DAG.ReplaceAllUsesOfValueWith(Op.getValue(0), cpOut);
   DAG.ReplaceAllUsesOfValueWith(Op.getValue(1), Success);
   DAG.ReplaceAllUsesOfValueWith(Op.getValue(2), EFLAGS.getValue(1));
-  return SDValue();
+  return Op;
 }
 
 static SDValue LowerBITCAST(SDValue Op, const X86Subtarget &Subtarget,
@@ -21091,7 +21094,7 @@ static SDValue lowerAtomicArith(SDValue N, SelectionDAG &DAG,
   // RAUW the chain, but don't worry about the result, as it's unused.
   assert(!N->hasAnyUseOfValue(0));
   DAG.ReplaceAllUsesOfValueWith(N.getValue(1), LockOp.getValue(1));
-  return SDValue();
+  return LockOp;
 }
 
 static SDValue LowerATOMIC_STORE(SDValue Op, SelectionDAG &DAG) {

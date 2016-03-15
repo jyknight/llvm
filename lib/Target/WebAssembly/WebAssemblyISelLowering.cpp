@@ -49,6 +49,11 @@ WebAssemblyTargetLowering::WebAssemblyTargetLowering(
   // Tell ISel that we have a stack pointer.
   setStackPointerRegisterToSaveRestore(
       Subtarget->hasAddr64() ? WebAssembly::SP64 : WebAssembly::SP32);
+  // Maximum atomics size
+  if (Subtarget->hasAddr64())
+    setMaxAtomicSizeInBitsSupported(64);
+  else
+    setMaxAtomicSizeInBitsSupported(32);
   // Set up the register classes.
   addRegisterClass(MVT::i32, &WebAssembly::I32RegClass);
   addRegisterClass(MVT::i64, &WebAssembly::I64RegClass);

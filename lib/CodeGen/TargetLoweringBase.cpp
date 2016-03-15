@@ -353,66 +353,6 @@ static void InitLibcallNames(const char **Names, const Triple &TT) {
   Names[RTLIB::MEMMOVE] = "memmove";
   Names[RTLIB::MEMSET] = "memset";
   Names[RTLIB::UNWIND_RESUME] = "_Unwind_Resume";
-  Names[RTLIB::SYNC_VAL_COMPARE_AND_SWAP_1] = "__sync_val_compare_and_swap_1";
-  Names[RTLIB::SYNC_VAL_COMPARE_AND_SWAP_2] = "__sync_val_compare_and_swap_2";
-  Names[RTLIB::SYNC_VAL_COMPARE_AND_SWAP_4] = "__sync_val_compare_and_swap_4";
-  Names[RTLIB::SYNC_VAL_COMPARE_AND_SWAP_8] = "__sync_val_compare_and_swap_8";
-  Names[RTLIB::SYNC_VAL_COMPARE_AND_SWAP_16] = "__sync_val_compare_and_swap_16";
-  Names[RTLIB::SYNC_LOCK_TEST_AND_SET_1] = "__sync_lock_test_and_set_1";
-  Names[RTLIB::SYNC_LOCK_TEST_AND_SET_2] = "__sync_lock_test_and_set_2";
-  Names[RTLIB::SYNC_LOCK_TEST_AND_SET_4] = "__sync_lock_test_and_set_4";
-  Names[RTLIB::SYNC_LOCK_TEST_AND_SET_8] = "__sync_lock_test_and_set_8";
-  Names[RTLIB::SYNC_LOCK_TEST_AND_SET_16] = "__sync_lock_test_and_set_16";
-  Names[RTLIB::SYNC_FETCH_AND_ADD_1] = "__sync_fetch_and_add_1";
-  Names[RTLIB::SYNC_FETCH_AND_ADD_2] = "__sync_fetch_and_add_2";
-  Names[RTLIB::SYNC_FETCH_AND_ADD_4] = "__sync_fetch_and_add_4";
-  Names[RTLIB::SYNC_FETCH_AND_ADD_8] = "__sync_fetch_and_add_8";
-  Names[RTLIB::SYNC_FETCH_AND_ADD_16] = "__sync_fetch_and_add_16";
-  Names[RTLIB::SYNC_FETCH_AND_SUB_1] = "__sync_fetch_and_sub_1";
-  Names[RTLIB::SYNC_FETCH_AND_SUB_2] = "__sync_fetch_and_sub_2";
-  Names[RTLIB::SYNC_FETCH_AND_SUB_4] = "__sync_fetch_and_sub_4";
-  Names[RTLIB::SYNC_FETCH_AND_SUB_8] = "__sync_fetch_and_sub_8";
-  Names[RTLIB::SYNC_FETCH_AND_SUB_16] = "__sync_fetch_and_sub_16";
-  Names[RTLIB::SYNC_FETCH_AND_AND_1] = "__sync_fetch_and_and_1";
-  Names[RTLIB::SYNC_FETCH_AND_AND_2] = "__sync_fetch_and_and_2";
-  Names[RTLIB::SYNC_FETCH_AND_AND_4] = "__sync_fetch_and_and_4";
-  Names[RTLIB::SYNC_FETCH_AND_AND_8] = "__sync_fetch_and_and_8";
-  Names[RTLIB::SYNC_FETCH_AND_AND_16] = "__sync_fetch_and_and_16";
-  Names[RTLIB::SYNC_FETCH_AND_OR_1] = "__sync_fetch_and_or_1";
-  Names[RTLIB::SYNC_FETCH_AND_OR_2] = "__sync_fetch_and_or_2";
-  Names[RTLIB::SYNC_FETCH_AND_OR_4] = "__sync_fetch_and_or_4";
-  Names[RTLIB::SYNC_FETCH_AND_OR_8] = "__sync_fetch_and_or_8";
-  Names[RTLIB::SYNC_FETCH_AND_OR_16] = "__sync_fetch_and_or_16";
-  Names[RTLIB::SYNC_FETCH_AND_XOR_1] = "__sync_fetch_and_xor_1";
-  Names[RTLIB::SYNC_FETCH_AND_XOR_2] = "__sync_fetch_and_xor_2";
-  Names[RTLIB::SYNC_FETCH_AND_XOR_4] = "__sync_fetch_and_xor_4";
-  Names[RTLIB::SYNC_FETCH_AND_XOR_8] = "__sync_fetch_and_xor_8";
-  Names[RTLIB::SYNC_FETCH_AND_XOR_16] = "__sync_fetch_and_xor_16";
-  Names[RTLIB::SYNC_FETCH_AND_NAND_1] = "__sync_fetch_and_nand_1";
-  Names[RTLIB::SYNC_FETCH_AND_NAND_2] = "__sync_fetch_and_nand_2";
-  Names[RTLIB::SYNC_FETCH_AND_NAND_4] = "__sync_fetch_and_nand_4";
-  Names[RTLIB::SYNC_FETCH_AND_NAND_8] = "__sync_fetch_and_nand_8";
-  Names[RTLIB::SYNC_FETCH_AND_NAND_16] = "__sync_fetch_and_nand_16";
-  Names[RTLIB::SYNC_FETCH_AND_MAX_1] = "__sync_fetch_and_max_1";
-  Names[RTLIB::SYNC_FETCH_AND_MAX_2] = "__sync_fetch_and_max_2";
-  Names[RTLIB::SYNC_FETCH_AND_MAX_4] = "__sync_fetch_and_max_4";
-  Names[RTLIB::SYNC_FETCH_AND_MAX_8] = "__sync_fetch_and_max_8";
-  Names[RTLIB::SYNC_FETCH_AND_MAX_16] = "__sync_fetch_and_max_16";
-  Names[RTLIB::SYNC_FETCH_AND_UMAX_1] = "__sync_fetch_and_umax_1";
-  Names[RTLIB::SYNC_FETCH_AND_UMAX_2] = "__sync_fetch_and_umax_2";
-  Names[RTLIB::SYNC_FETCH_AND_UMAX_4] = "__sync_fetch_and_umax_4";
-  Names[RTLIB::SYNC_FETCH_AND_UMAX_8] = "__sync_fetch_and_umax_8";
-  Names[RTLIB::SYNC_FETCH_AND_UMAX_16] = "__sync_fetch_and_umax_16";
-  Names[RTLIB::SYNC_FETCH_AND_MIN_1] = "__sync_fetch_and_min_1";
-  Names[RTLIB::SYNC_FETCH_AND_MIN_2] = "__sync_fetch_and_min_2";
-  Names[RTLIB::SYNC_FETCH_AND_MIN_4] = "__sync_fetch_and_min_4";
-  Names[RTLIB::SYNC_FETCH_AND_MIN_8] = "__sync_fetch_and_min_8";
-  Names[RTLIB::SYNC_FETCH_AND_MIN_16] = "__sync_fetch_and_min_16";
-  Names[RTLIB::SYNC_FETCH_AND_UMIN_1] = "__sync_fetch_and_umin_1";
-  Names[RTLIB::SYNC_FETCH_AND_UMIN_2] = "__sync_fetch_and_umin_2";
-  Names[RTLIB::SYNC_FETCH_AND_UMIN_4] = "__sync_fetch_and_umin_4";
-  Names[RTLIB::SYNC_FETCH_AND_UMIN_8] = "__sync_fetch_and_umin_8";
-  Names[RTLIB::SYNC_FETCH_AND_UMIN_16] = "__sync_fetch_and_umin_16";
 
   Names[RTLIB::ATOMIC_LOAD] = "__atomic_load";
   Names[RTLIB::ATOMIC_LOAD_1] = "__atomic_load_1";
@@ -488,6 +428,85 @@ static void InitLibcallNames(const char **Names, const Triple &TT) {
   Names[RTLIB::DEOPTIMIZE] = "__llvm_deoptimize";
 }
 
+void TargetLoweringBase::initSyncLibcalls() {
+  LibcallRoutineNames[RTLIB::SYNC_VAL_COMPARE_AND_SWAP_1] =
+      "__sync_val_compare_and_swap_1";
+  LibcallRoutineNames[RTLIB::SYNC_LOCK_TEST_AND_SET_1] =
+      "__sync_lock_test_and_set_1";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_ADD_1] = "__sync_fetch_and_add_1";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_SUB_1] = "__sync_fetch_and_sub_1";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_AND_1] = "__sync_fetch_and_and_1";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_OR_1] = "__sync_fetch_and_or_1";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_XOR_1] = "__sync_fetch_and_xor_1";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_NAND_1] = "__sync_fetch_and_nand_1";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_MAX_1] = "__sync_fetch_and_max_1";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_UMAX_1] = "__sync_fetch_and_umax_1";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_MIN_1] = "__sync_fetch_and_min_1";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_UMIN_1] = "__sync_fetch_and_umin_1";
+
+  LibcallRoutineNames[RTLIB::SYNC_VAL_COMPARE_AND_SWAP_2] =
+      "__sync_val_compare_and_swap_2";
+  LibcallRoutineNames[RTLIB::SYNC_LOCK_TEST_AND_SET_2] =
+      "__sync_lock_test_and_set_2";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_ADD_2] = "__sync_fetch_and_add_2";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_SUB_2] = "__sync_fetch_and_sub_2";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_AND_2] = "__sync_fetch_and_and_2";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_OR_2] = "__sync_fetch_and_or_2";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_XOR_2] = "__sync_fetch_and_xor_2";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_NAND_2] = "__sync_fetch_and_nand_2";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_MAX_2] = "__sync_fetch_and_max_2";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_UMAX_2] = "__sync_fetch_and_umax_2";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_MIN_2] = "__sync_fetch_and_min_2";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_UMIN_2] = "__sync_fetch_and_umin_2";
+
+  LibcallRoutineNames[RTLIB::SYNC_VAL_COMPARE_AND_SWAP_4] =
+      "__sync_val_compare_and_swap_4";
+  LibcallRoutineNames[RTLIB::SYNC_LOCK_TEST_AND_SET_4] =
+      "__sync_lock_test_and_set_4";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_ADD_4] = "__sync_fetch_and_add_4";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_SUB_4] = "__sync_fetch_and_sub_4";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_AND_4] = "__sync_fetch_and_and_4";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_OR_4] = "__sync_fetch_and_or_4";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_XOR_4] = "__sync_fetch_and_xor_4";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_NAND_4] = "__sync_fetch_and_nand_4";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_MAX_4] = "__sync_fetch_and_max_4";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_UMAX_4] = "__sync_fetch_and_umax_4";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_MIN_4] = "__sync_fetch_and_min_4";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_UMIN_4] = "__sync_fetch_and_umin_4";
+
+  LibcallRoutineNames[RTLIB::SYNC_VAL_COMPARE_AND_SWAP_8] =
+      "__sync_val_compare_and_swap_8";
+  LibcallRoutineNames[RTLIB::SYNC_LOCK_TEST_AND_SET_8] =
+      "__sync_lock_test_and_set_8";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_ADD_8] = "__sync_fetch_and_add_8";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_SUB_8] = "__sync_fetch_and_sub_8";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_AND_8] = "__sync_fetch_and_and_8";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_OR_8] = "__sync_fetch_and_or_8";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_XOR_8] = "__sync_fetch_and_xor_8";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_NAND_8] = "__sync_fetch_and_nand_8";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_MAX_8] = "__sync_fetch_and_max_8";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_UMAX_8] = "__sync_fetch_and_umax_8";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_MIN_8] = "__sync_fetch_and_min_8";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_UMIN_8] = "__sync_fetch_and_umin_8";
+
+  LibcallRoutineNames[RTLIB::SYNC_VAL_COMPARE_AND_SWAP_16] =
+      "__sync_val_compare_and_swap_16";
+  LibcallRoutineNames[RTLIB::SYNC_LOCK_TEST_AND_SET_16] =
+      "__sync_lock_test_and_set_16";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_ADD_16] = "__sync_fetch_and_add_16";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_SUB_16] = "__sync_fetch_and_sub_16";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_AND_16] = "__sync_fetch_and_and_16";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_OR_16] = "__sync_fetch_and_or_16";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_XOR_16] = "__sync_fetch_and_xor_16";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_NAND_16] =
+      "__sync_fetch_and_nand_16";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_MAX_16] = "__sync_fetch_and_max_16";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_UMAX_16] =
+      "__sync_fetch_and_umax_16";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_MIN_16] = "__sync_fetch_and_min_16";
+  LibcallRoutineNames[RTLIB::SYNC_FETCH_AND_UMIN_16] =
+      "__sync_fetch_and_umin_16";
+}
 /// InitLibcallCallingConvs - Set default libcall CallingConvs.
 ///
 static void InitLibcallCallingConvs(CallingConv::ID *CCs) {
@@ -826,9 +845,7 @@ TargetLoweringBase::TargetLoweringBase(const TargetMachine &tm) : TM(tm) {
   GatherAllAliasesMaxDepth = 6;
   MinStackArgumentAlignment = 1;
   MinimumJumpTableEntries = 4;
-  // TODO: the default will be switched to 0 in the next commit, along
-  // with the Target-specific changes necessary.
-  MaxAtomicSizeInBitsSupported = 1024;
+  MaxAtomicSizeInBitsSupported = 0;
 
   MinCmpXchgSizeInBits = 0;
 

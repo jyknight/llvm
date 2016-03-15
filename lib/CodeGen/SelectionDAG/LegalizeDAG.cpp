@@ -2795,33 +2795,6 @@ bool SelectionDAGLegalize::ExpandNode(SDNode *Node) {
     Results.push_back(DAG.getConstant(0, dl, MVT::i32));
     Results.push_back(Node->getOperand(0));
     break;
-  case ISD::ATOMIC_LOAD: {
-    // There is no libcall for atomic load; fake it with ATOMIC_CMP_SWAP.
-    SDValue Zero = DAG.getConstant(0, dl, Node->getValueType(0));
-    SDVTList VTs = DAG.getVTList(Node->getValueType(0), MVT::Other);
-    SDValue Swap = DAG.getAtomicCmpSwap(
-        ISD::ATOMIC_CMP_SWAP, dl, cast<AtomicSDNode>(Node)->getMemoryVT(), VTs,
-        Node->getOperand(0), Node->getOperand(1), Zero, Zero,
-        cast<AtomicSDNode>(Node)->getMemOperand(),
-        cast<AtomicSDNode>(Node)->getOrdering(),
-        cast<AtomicSDNode>(Node)->getOrdering(),
-        cast<AtomicSDNode>(Node)->getSynchScope());
-    Results.push_back(Swap.getValue(0));
-    Results.push_back(Swap.getValue(1));
-    break;
-  }
-  case ISD::ATOMIC_STORE: {
-    // There is no libcall for atomic store; fake it with ATOMIC_SWAP.
-    SDValue Swap = DAG.getAtomic(ISD::ATOMIC_SWAP, dl,
-                                 cast<AtomicSDNode>(Node)->getMemoryVT(),
-                                 Node->getOperand(0),
-                                 Node->getOperand(1), Node->getOperand(2),
-                                 cast<AtomicSDNode>(Node)->getMemOperand(),
-                                 cast<AtomicSDNode>(Node)->getOrdering(),
-                                 cast<AtomicSDNode>(Node)->getSynchScope());
-    Results.push_back(Swap.getValue(1));
-    break;
-  }
   case ISD::ATOMIC_CMP_SWAP_WITH_SUCCESS: {
     // Expanding an ATOMIC_CMP_SWAP_WITH_SUCCESS produces an ATOMIC_CMP_SWAP and
     // splits out the success value as a comparison. Expanding the resulting
