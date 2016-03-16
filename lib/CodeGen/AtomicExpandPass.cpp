@@ -110,18 +110,20 @@ unsigned getAtomicOpSize(AtomicCmpXchgInst *CASI) {
 
 // Helper functions to retrieve the alignment of atomic instructions.
 unsigned getAtomicOpAlign(LoadInst *LI) {
-  const DataLayout &DL = LI->getModule()->getDataLayout();
   unsigned Align = LI->getAlignment();
-  if (Align == 0)
-    return DL.getABITypeAlignment(LI->getType());
+  // In the future, if this IR restriction is relaxed, we should
+  // return DataLayout::getABITypeAlignment when there's no align
+  // value.
+  assert(Align != 0 && "An atomic LoadInst always has an explicit alignment");
   return Align;
 }
 
 unsigned getAtomicOpAlign(StoreInst *SI) {
-  const DataLayout &DL = SI->getModule()->getDataLayout();
   unsigned Align = SI->getAlignment();
-  if (Align == 0)
-    return DL.getABITypeAlignment(SI->getValueOperand()->getType());
+  // In the future, if this IR restriction is relaxed, we should
+  // return DataLayout::getABITypeAlignment when there's no align
+  // value.
+  assert(Align != 0 && "An atomic StoreInst always has an explicit alignment");
   return Align;
 }
 
@@ -938,23 +940,32 @@ bool llvm::expandAtomicRMWToCmpXchg(AtomicRMWInst *AI,
 // This converts from LLVM's internal AtomicOrdering enum to the
 // memory_order_* value required by the __atomic_* libcalls.
 static int libcallAtomicModel(AtomicOrdering AO) {
+  enum {
+    AO_ABI_memory_order_relaxed = 0,
+    AO_ABI_memory_order_consume = 1,
+    AO_ABI_memory_order_acquire = 2,
+    AO_ABI_memory_order_release = 3,
+    AO_ABI_memory_order_acq_rel = 4,
+    AO_ABI_memory_order_seq_cst = 5
+  };
+
   switch (AO) {
   case NotAtomic:
     llvm_unreachable("Expected atomic memory order.");
   case Unordered:
   case Monotonic:
-    return 0; // memory_order_relaxed
+    return AO_ABI_memory_order_relaxed;
   // Not implemented yet in llvm:
   // case Consume:
-  //  return 1; // memory_order_consume
+  //  return AO_ABI_memory_order_consume;
   case Acquire:
-    return 2; // memory_order_acquire
+    return AO_ABI_memory_order_acquire;
   case Release:
-    return 3; // memory_order_release
+    return AO_ABI_memory_order_release;
   case AcquireRelease:
-    return 4; // memory_order_acq_rel
+    return AO_ABI_memory_order_acq_rel;
   case SequentiallyConsistent:
-    return 5; // memory_order_seq_cst
+    return AO_ABI_memory_order_seq_cst;
   }
   llvm_unreachable("Unknown atomic memory order.");
 }
@@ -1095,7 +1106,7 @@ void AtomicExpand::expandAtomicRMWToLibcall(AtomicRMWInst *I) {
   // The expansion failed: either there were no libcalls at all for
   // the operation (min/max), or there were only size-specialized
   // libcalls (add/sub/etc) and we needed a generic. So, expand to a
-  // CAS loop instead.
+  // CAS libcall, via a CAS loop, instead.
   if (!Success) {
     expandAtomicRMWToCmpXchg(I, [this](IRBuilder<> &Builder, Value *Addr,
                                        Value *Loaded, Value *NewVal,
@@ -1149,21 +1160,11 @@ bool AtomicExpand::expandAtomicOpToLibcall(
   RTLIB::Libcall RTLibType;
   if (UseSizedLibcall) {
     switch (Size) {
-    case 1:
-      RTLibType = Libcalls[1];
-      break;
-    case 2:
-      RTLibType = Libcalls[2];
-      break;
-    case 4:
-      RTLibType = Libcalls[3];
-      break;
-    case 8:
-      RTLibType = Libcalls[4];
-      break;
-    case 16:
-      RTLibType = Libcalls[5];
-      break;
+    case 1: RTLibType = Libcalls[1]; break;
+    case 2: RTLibType = Libcalls[2]; break;
+    case 4: RTLibType = Libcalls[3]; break;
+    case 8: RTLibType = Libcalls[4]; break;
+    case 16: RTLibType = Libcalls[5]; break;
     }
   } else if (Libcalls[0] != RTLIB::UNKNOWN_LIBCALL) {
     RTLibType = Libcalls[0];
@@ -1223,8 +1224,7 @@ bool AtomicExpand::expandAtomicOpToLibcall(
 
   // 'expected' argument, if present.
   if (CASExpected) {
-    AllocaCASExpected =
-        AllocaBuilder.CreateAlloca(CASExpected->getType(), nullptr, "");
+    AllocaCASExpected = AllocaBuilder.CreateAlloca(CASExpected->getType());
     AllocaCASExpected->setAlignment(AllocaAlignment);
     AllocaCASExpected_i8 =
         Builder.CreateBitCast(AllocaCASExpected, Type::getInt8PtrTy(Ctx));
@@ -1240,8 +1240,7 @@ bool AtomicExpand::expandAtomicOpToLibcall(
           Builder.CreateBitOrPointerCast(ValueOperand, SizedIntTy);
       Args.push_back(IntValue);
     } else {
-      AllocaValue =
-          AllocaBuilder.CreateAlloca(ValueOperand->getType(), nullptr, "");
+      AllocaValue = AllocaBuilder.CreateAlloca(ValueOperand->getType());
       AllocaValue->setAlignment(AllocaAlignment);
       AllocaValue_i8 =
           Builder.CreateBitCast(AllocaValue, Type::getInt8PtrTy(Ctx));
@@ -1253,7 +1252,7 @@ bool AtomicExpand::expandAtomicOpToLibcall(
 
   // 'ret' argument.
   if (!CASExpected && HasResult && !UseSizedLibcall) {
-    AllocaResult = AllocaBuilder.CreateAlloca(I->getType(), nullptr, "");
+    AllocaResult = AllocaBuilder.CreateAlloca(I->getType());
     AllocaResult->setAlignment(AllocaAlignment);
     AllocaResult_i8 =
         Builder.CreateBitCast(AllocaResult, Type::getInt8PtrTy(Ctx));
@@ -1300,8 +1299,8 @@ bool AtomicExpand::expandAtomicOpToLibcall(
     Value *ExpectedOut =
         Builder.CreateAlignedLoad(AllocaCASExpected, AllocaAlignment);
     Builder.CreateLifetimeEnd(AllocaCASExpected_i8, SizeVal64);
-    V = Builder.CreateInsertValue(V, ExpectedOut, 0, "");
-    V = Builder.CreateInsertValue(V, Result, 1, "");
+    V = Builder.CreateInsertValue(V, ExpectedOut, 0);
+    V = Builder.CreateInsertValue(V, Result, 1);
     I->replaceAllUsesWith(V);
   } else if (HasResult) {
     Value *V;
