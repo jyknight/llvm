@@ -1641,7 +1641,7 @@ SparcTargetLowering::SparcTargetLowering(const TargetMachine &TM,
   // are unsupported.
   if (Subtarget->isV9())
     setMaxAtomicSizeInBitsSupported(64);
-  else if (false && Subtarget->hasLeonCasa())
+  else if (Subtarget->hasLeonCasa())
     // Test made to fail pending completion of AtomicExpandPass,
     // as this will cause a regression until that work is completed.
     setMaxAtomicSizeInBitsSupported(32);
