@@ -538,6 +538,12 @@ public:
                              Type *ResultType,
                              const Twine &Name = "");
 
+  /// CreateMalloc - Generate the IR for a call to malloc:
+  /// 1. Compute the malloc call's argument as the specified type's size,
+  ///    multiplied by the array size.
+  /// 2. Call malloc with that argument.
+  /// 3. Bitcast the result of the malloc call to the specified type.
+
 private:
   /// \brief Create a call to a masked intrinsic with given Id.
   CallInst *CreateMaskedIntrinsic(Intrinsic::ID Id, ArrayRef<Value *> Ops,

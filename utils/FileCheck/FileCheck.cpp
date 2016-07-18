@@ -206,22 +206,23 @@ bool Pattern::ParsePattern(StringRef PatternStr,
   }
 
   // Check to see if this is a fixed string, or if it has regex pieces.
-  if (!MatchFullLinesHere &&
+  /*  if (!MatchFullLinesHere &&
       (PatternStr.size() < 2 || (PatternStr.find("{{") == StringRef::npos &&
                                  PatternStr.find("[[") == StringRef::npos))) {
     FixedStr = PatternStr;
     return false;
   }
-
+  */
   if (MatchFullLinesHere) {
     RegExStr += '^';
     if (!NoCanonicalizeWhiteSpace)
       RegExStr += " *";
-  }
+  } else if (CheckTy != Check::CheckNot)
+    RegExStr += "([^[:alnum:]_]|[[:>:]]|^)";
 
   // Paren value #0 is for the fully matched string.  Any new parenthesized
   // values add from there.
-  unsigned CurParen = 1;
+  unsigned CurParen = 2;
 
   // Otherwise, there is at least one regex piece.  Build up the regex pattern
   // by escaping scary characters in fixed strings, building up one big regex.
@@ -354,8 +355,9 @@ bool Pattern::ParsePattern(StringRef PatternStr,
     if (!NoCanonicalizeWhiteSpace)
       RegExStr += " *";
     RegExStr += '$';
-  }
-
+  } else if (CheckTy != Check::CheckNot)
+    RegExStr += "([^[:alnum:]_]|[[:<:]]|$)";
+  //  printf("RegEx is %s\n", RegExStr.c_str());
   return false;
 }
 

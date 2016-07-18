@@ -462,3 +462,38 @@ CallInst *IRBuilderBase::CreateGCRelocate(Instruction *Statepoint,
                   getInt32(DerivedOffset)};
  return createCallHelper(FnGCRelocate, Args, this, Name);
 }
+
+Instruction *IRBuilderBase::CreateMalloc(Type *IntPtrTy,
+                                         Type *AllocTy, Value *AllocSize,
+                                         Value *ArraySize,
+                                         ArrayRef<OperandBundleDef> OpB,
+                                         const Twine &Name) {
+  if (!ArraySize)
+    ArraySize = ConstantInt::get(IntPtrTy, 1);
+  else if (ArraySize->getType() != IntPtrTy)
+    ArraySize = Builder.CreateIntCast(ArraySize, IntPtrTy, false);
+
+  AllocSize = Builder.CreateMul(ArraySize, AllocSize,
+                                "mallocsize");
+
+  // Create the call to Malloc.
+  BasicBlock *BB = GetInsertBlock();
+  Module *M = BB->getModule();
+  Value *MallocFunc = M->getOrInsertFunction("malloc", getInt8PtrTy(), IntPtrTy, nullptr);
+  PointerType *AllocPtrType = PointerType::getUnqual(AllocTy);
+  CallInst *MCall = CreateCall(MallocFunc, AllocSize, OpB, "malloccall");
+
+  MCall->setTailCall();
+  if (Function *F = dyn_cast<Function>(MallocFunc)) {
+    MCall->setCallingConv(F->getCallingConv());
+    if (!F->doesNotAlias(0)) F->setDoesNotAlias(0);
+  }
+
+  Instruction *Result = MCall;
+  if (Result->getType() != AllocPtrType) {
+    // Create a cast instruction to convert to the right type...
+    Result = CreateBitCast(MCall, AllocPtrType);
+  }
+  Result.SetName(Name);
+  return Result;
+}
