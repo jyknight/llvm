@@ -862,9 +862,9 @@ OptimizeGlobalAddressOfMalloc(GlobalVariable *GV, CallInst *CI, Type *AllocTy,
 
       // Replace the cmp X, 0 with a use of the bool value.
       // Sink the load to where the compare was, if atomic rules allow us to.
-      Value *LV = new LoadInst(InitBool, InitBool->getName()+".val", false, 0,
-                               LI->getOrdering(), LI->getSynchScope(),
-                               LI->isUnordered() ? (Instruction*)ICI : LI);
+      Value *LV = IRBuilder<>(LI->isUnordered() ? (Instruction*)ICI : LI).CreateLoad(
+          InitBool, false, 0,
+          LI->getOrdering(), LI->getSynchScope(), InitBool->getName()+".val");
       InitBoolUsed = true;
       switch (ICI->getPredicate()) {
       default: llvm_unreachable("Unknown ICmp Predicate!");
@@ -997,7 +997,7 @@ static void ReplaceUsesOfMallocWithGlobal(Instruction *Alloc,
     }
 
     // Insert a load from the global, and use it instead of the malloc.
-    Value *NL = new LoadInst(GV, GV->getName()+".val", InsertPt);
+    Value *NL = IRBuilder<>(InsertPt).CreateLoad(GV, GV->getName()+".val");
     U->replaceUsesOfWith(Alloc, NL);
   }
 }
@@ -1117,14 +1117,15 @@ static Value *GetHeapSROAValue(Value *V, unsigned FieldNo,
     return FieldVal;
 
   // Depending on what instruction this is, we have several cases.
+  IRBuilder<> Builder(V);
   Value *Result;
   if (LoadInst *LI = dyn_cast<LoadInst>(V)) {
     // This is a scalarized version of the load from the global.  Just create
     // a new Load of the scalarized global.
-    Result = new LoadInst(GetHeapSROAValue(LI->getOperand(0), FieldNo,
-                                           InsertedScalarizedValues,
-                                           PHIsToRewrite),
-                          LI->getName()+".f"+Twine(FieldNo), LI);
+    Result = Builder.CreateLoad(GetHeapSROAValue(LI->getOperand(0), FieldNo,
+                                                 InsertedScalarizedValues,
+                                                 PHIsToRewrite),
+                                LI->getName()+".f"+Twine(FieldNo));
   } else {
     PHINode *PN = cast<PHINode>(V);
     // PN's type is pointer to struct.  Make a new PHI of pointer to struct
@@ -1134,10 +1135,9 @@ static Value *GetHeapSROAValue(Value *V, unsigned FieldNo,
     StructType *ST = cast<StructType>(PTy->getElementType());
 
     unsigned AS = PTy->getAddressSpace();
-    PHINode *NewPN =
-      PHINode::Create(PointerType::get(ST->getElementType(FieldNo), AS),
+    PHINode *NewPN = Builder.CreatePHI(PointerType::get(ST->getElementType(FieldNo), AS),
                      PN->getNumIncomingValues(),
-                     PN->getName()+".f"+Twine(FieldNo), PN);
+                     PN->getName()+".f"+Twine(FieldNo));
     Result = NewPN;
     PHIsToRewrite.push_back(std::make_pair(PN, FieldNo));
   }

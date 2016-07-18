@@ -142,24 +142,23 @@ INITIALIZE_PASS(NVPTXLowerKernelArgs, "nvptx-lower-kernel-args",
 // =============================================================================
 void NVPTXLowerKernelArgs::handleByValParam(Argument *Arg) {
   Function *Func = Arg->getParent();
-  Instruction *FirstInst = &(Func->getEntryBlock().front());
+  IRBuilder<> Builder(&Func->getEntryBlock().front());
   PointerType *PType = dyn_cast<PointerType>(Arg->getType());
 
   assert(PType && "Expecting pointer type in handleByValParam");
 
   Type *StructType = PType->getElementType();
-  AllocaInst *AllocA = new AllocaInst(StructType, Arg->getName(), FirstInst);
+  AllocaInst *AllocA = Builder.CreateAlloca(StructType, Arg->getName());
   // Set the alignment to alignment of the byval parameter. This is because,
   // later load/stores assume that alignment, and we are going to replace
   // the use of the byval parameter with this alloca instruction.
   AllocA->setAlignment(Func->getParamAlignment(Arg->getArgNo() + 1));
   Arg->replaceAllUsesWith(AllocA);
 
-  Value *ArgInParam = new AddrSpaceCastInst(
-      Arg, PointerType::get(StructType, ADDRESS_SPACE_PARAM), Arg->getName(),
-      FirstInst);
-  LoadInst *LI = new LoadInst(ArgInParam, Arg->getName(), FirstInst);
-  new StoreInst(LI, AllocA, FirstInst);
+  Value *ArgInParam = Builder.CreateAddrSpaceCast(
+      Arg, PointerType::get(StructType, ADDRESS_SPACE_PARAM), Arg->getName());
+  LoadInst *LI = Builder.CreateLoad(ArgInParam, Arg->getName());
+  Builder.CreateStore(LI, AllocA);
 }
 
 void NVPTXLowerKernelArgs::markPointerAsGlobal(Value *Ptr) {

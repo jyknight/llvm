@@ -1602,8 +1602,7 @@ static void relocationViaAlloca(
   // Emit alloca for "LiveValue" and record it in "allocaMap" and
   // "PromotableAllocas"
   auto emitAllocaFor = [&](Value *LiveValue) {
-    AllocaInst *Alloca = new AllocaInst(LiveValue->getType(), "",
-                                        F.getEntryBlock().getFirstNonPHI());
+    AllocaInst *Alloca = IRBuilder<>(F.getEntryBlock().getFirstNonPHI()).CreateAlloca(LiveValue->getType());
     AllocaMap[LiveValue] = Alloca;
     PromotableAllocas.push_back(Alloca);
   };
@@ -1721,13 +1720,12 @@ static void relocationViaAlloca(
         PHINode *Phi = cast<PHINode>(Use);
         for (unsigned i = 0; i < Phi->getNumIncomingValues(); i++) {
           if (Def == Phi->getIncomingValue(i)) {
-            LoadInst *Load = new LoadInst(
-                Alloca, "", Phi->getIncomingBlock(i)->getTerminator());
+            LoadInst *Load = IRBuilder<>(Phi->getIncomingBlock(i)->getTerminator()).CreateLoad(Alloca);
             Phi->setIncomingValue(i, Load);
           }
         }
       } else {
-        LoadInst *Load = new LoadInst(Alloca, "", Use);
+        LoadInst *Load = IRBuilder<>(Use).CreateLoad(Alloca);
         Use->replaceUsesOfWith(Def, Load);
       }
     }

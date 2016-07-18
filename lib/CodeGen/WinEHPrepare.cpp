@@ -1156,10 +1156,10 @@ void WinEHPrepare::replaceUseWithLoad(Value *V, Use &U, AllocaInst *&SpillSlot,
                                       DenseMap<BasicBlock *, Value *> &Loads,
                                       Function &F) {
   // Lazilly create the spill slot.
-  if (!SpillSlot)
-    SpillSlot = new AllocaInst(V->getType(), nullptr,
-                               Twine(V->getName(), ".wineh.spillslot"),
-                               &F.getEntryBlock().front());
+  if (!SpillSlot) {
+    IRBuilder Builder(F.getEntryBlock().front());
+    SpillSlot = Builder.CreateAlloca(V->getType(), Twine(V->getName(), ".wineh.spillslot"));
+  }
 
   auto *UsingInst = cast<Instruction>(U.getUser());
   if (auto *UsingPHI = dyn_cast<PHINode>(UsingInst)) {
@@ -1211,15 +1211,18 @@ void WinEHPrepare::replaceUseWithLoad(Value *V, Use &U, AllocaInst *&SpillSlot,
     }
     Value *&Load = Loads[IncomingBlock];
     // Insert the load into the predecessor block
-    if (!Load)
-      Load = new LoadInst(SpillSlot, Twine(V->getName(), ".wineh.reload"),
+    if (!Load) {
+      Load = new LoadInst(SpillSlot,
                           /*Volatile=*/false, IncomingBlock->getTerminator());
+      Load.SetName(Twine(V->getName(), ".wineh.reload"));
+    }
 
     U.set(Load);
   } else {
     // Reload right before the old use.
-    auto *Load = new LoadInst(SpillSlot, Twine(V->getName(), ".wineh.reload"),
+    auto *Load = new LoadInst(SpillSlot,
                               /*Volatile=*/false, UsingInst);
+    Load->SetName(Twine(V->getName(), ".wineh.reload"));
     U.set(Load);
   }
 }

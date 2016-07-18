@@ -174,13 +174,13 @@ Value *SjLjEHPrepare::setupFunctionContext(Function &F,
   // because the value needs to be added to the global context list.
   auto &DL = F.getParent()->getDataLayout();
   unsigned Align = DL.getPrefTypeAlignment(FunctionContextTy);
-  FuncCtx = new AllocaInst(FunctionContextTy, nullptr, Align, "fn_context",
-                           &EntryBB->front());
+  IRBuilder<> Builder(&EntryBB->front());
+  FuncCtx = Builder.CreateAlloca(FunctionContextTy, nullptr, Align, "fn_context");
 
   // Fill in the function context structure.
   for (LandingPadInst *LPI : LPads) {
-    IRBuilder<> Builder(LPI->getParent(),
-                        LPI->getParent()->getFirstInsertionPt());
+    Builder.SetInsertPoint(LPI->getParent(),
+                           LPI->getParent()->getFirstInsertionPt());
 
     // Reference the __data field.
     Value *FCData =
@@ -200,7 +200,7 @@ Value *SjLjEHPrepare::setupFunctionContext(Function &F,
   }
 
   // Personality function
-  IRBuilder<> Builder(EntryBB->getTerminator());
+  Builder.SetInsertPoint(EntryBB->getTerminator());
   Value *PersonalityFn = F.getPersonalityFn();
   Value *PersonalityFieldPtr = Builder.CreateConstGEP2_32(
       FunctionContextTy, FuncCtx, 0, 3, "pers_fn_gep");

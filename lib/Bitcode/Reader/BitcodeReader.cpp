@@ -5203,7 +5203,7 @@ std::error_code BitcodeReader::parseFunctionBody(Function *F) {
       unsigned Align;
       if (std::error_code EC = parseAlignmentValue(Record[OpNum], Align))
         return EC;
-      I = new LoadInst(Ty, Op, "", Record[OpNum + 1], Align);
+      I = new LoadInst(Ty, Op, Record[OpNum + 1], Align);
 
       InstructionList.push_back(I);
       break;
@@ -5236,7 +5236,7 @@ std::error_code BitcodeReader::parseFunctionBody(Function *F) {
       unsigned Align;
       if (std::error_code EC = parseAlignmentValue(Record[OpNum], Align))
         return EC;
-      I = new LoadInst(Op, "", Record[OpNum+1], Align, Ordering, SynchScope);
+      I = new LoadInst(Op, Record[OpNum+1], Align, Ordering, SynchScope);
 
       InstructionList.push_back(I);
       break;

@@ -28,16 +28,16 @@ AllocaInst *llvm::DemoteRegToStack(Instruction &I, bool VolatileLoads,
     return nullptr;
   }
 
+  IRBuilder<> Builder(I.getContext());
+
   // Create a stack slot to hold the value.
-  AllocaInst *Slot;
   if (AllocaPoint) {
-    Slot = new AllocaInst(I.getType(), nullptr,
-                          I.getName()+".reg2mem", AllocaPoint);
+    Builder.SetInsertPoint(AllocaPoint);
   } else {
-    Function *F = I.getParent()->getParent();
-    Slot = new AllocaInst(I.getType(), nullptr, I.getName() + ".reg2mem",
-                          &F->getEntryBlock().front());
+    Builder.SetInsertPoint(&I.getFunction()->getEntryBlock().front());
   }
+  AllocaInst *Slot = Builder.CreateAlloca(I.getType(), nullptr,
+                                          I.getName()+".reg2mem");
 
   // We cannot demote invoke instructions to the stack if their normal edge
   // is critical. Therefore, split the critical edge and create a basic block
@@ -71,15 +71,16 @@ AllocaInst *llvm::DemoteRegToStack(Instruction &I, bool VolatileLoads,
           Value *&V = Loads[PN->getIncomingBlock(i)];
           if (!V) {
             // Insert the load into the predecessor block
-            V = new LoadInst(Slot, I.getName()+".reload", VolatileLoads,
-                             PN->getIncomingBlock(i)->getTerminator());
+            Builder.SetInsertPoint(PN->getIncomingBlock(i)->getTerminator());
+            V = Builder.CreateLoad(Slot, VolatileLoads, I.getName()+".reload");
           }
           PN->setIncomingValue(i, V);
         }
 
     } else {
       // If this is a normal instruction, just insert a load.
-      Value *V = new LoadInst(Slot, I.getName()+".reload", VolatileLoads, U);
+      Builder.SetInsertPoint(U);
+      Value *V = Builder.CreateLoad(Slot, VolatileLoads, I.getName()+".reload");
       U->replaceUsesOfWith(&I, V);
     }
   }
@@ -97,7 +98,8 @@ AllocaInst *llvm::DemoteRegToStack(Instruction &I, bool VolatileLoads,
     InsertPt = II.getNormalDest()->getFirstInsertionPt();
   }
 
-  new StoreInst(&I, Slot, &*InsertPt);
+  Builder.SetInsertPoint(I.getParent(), InsertPt);
+  Builder.CreateStore(&I, Slot);
   return Slot;
 }
 
@@ -109,17 +111,15 @@ AllocaInst *llvm::DemotePHIToStack(PHINode *P, Instruction *AllocaPoint) {
     P->eraseFromParent();
     return nullptr;
   }
+  IRBuilder<> Builder(P->getContext());
 
   // Create a stack slot to hold the value.
-  AllocaInst *Slot;
   if (AllocaPoint) {
-    Slot = new AllocaInst(P->getType(), nullptr,
-                          P->getName()+".reg2mem", AllocaPoint);
+    Builder.SetInsertPoint(AllocaPoint);
   } else {
-    Function *F = P->getParent()->getParent();
-    Slot = new AllocaInst(P->getType(), nullptr, P->getName() + ".reg2mem",
-                          &F->getEntryBlock().front());
+    Builder.SetInsertPoint(&P.getFunction()->getEntryBlock().front());
   }
+  AllocaInst *Slot = Builder.CreateAlloca(P->getType(), nullptr, P->getName() + ".reg2mem");
 
   // Iterate over each operand inserting a store in each predecessor.
   for (unsigned i = 0, e = P->getNumIncomingValues(); i < e; ++i) {
@@ -127,8 +127,8 @@ AllocaInst *llvm::DemotePHIToStack(PHINode *P, Instruction *AllocaPoint) {
       assert(II->getParent() != P->getIncomingBlock(i) &&
              "Invoke edge not supported yet"); (void)II;
     }
-    new StoreInst(P->getIncomingValue(i), Slot,
-                  P->getIncomingBlock(i)->getTerminator());
+    Builder.SetInsertPoint(P->getIncomingBlock(i)->getTerminator());
+    Builder.CreateStore(P->getIncomingValue(i), Slot);
   }
 
   // Insert a load in place of the PHI and replace all uses.
@@ -137,7 +137,8 @@ AllocaInst *llvm::DemotePHIToStack(PHINode *P, Instruction *AllocaPoint) {
   for (; isa<PHINode>(InsertPt) || InsertPt->isEHPad(); ++InsertPt)
     /* empty */;   // Don't insert before PHI nodes or landingpad instrs.
 
-  Value *V = new LoadInst(Slot, P->getName() + ".reload", &*InsertPt);
+  Builder.SetInsertPoint(P->getParent(), InsertPt);
+  Value *V = Builder.CreateLoad(Slot, P->getName() + ".reload");
   P->replaceAllUsesWith(V);
 
   // Delete PHI.

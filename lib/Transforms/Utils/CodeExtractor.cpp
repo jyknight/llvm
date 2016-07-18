@@ -23,6 +23,7 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Dominators.h"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
@@ -364,10 +365,9 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
       Value *Idx[2];
       Idx[0] = Constant::getNullValue(Type::getInt32Ty(header->getContext()));
       Idx[1] = ConstantInt::get(Type::getInt32Ty(header->getContext()), i);
-      TerminatorInst *TI = newFunction->begin()->getTerminator();
-      GetElementPtrInst *GEP = GetElementPtrInst::Create(
-          StructTy, &*AI, Idx, "gep_" + inputs[i]->getName(), TI);
-      RewriteVal = new LoadInst(GEP, "loadgep_" + inputs[i]->getName(), TI);
+      IRBuilder<> Builder(newFunction->begin()->getTerminator());
+      GetElementPtrInst *GEP = Builder.CreateGEP(StructTy, &*AI, Idx, "gep_" + inputs[i]->getName());
+      RewriteVal = Builder.CreateLoad(GEP, "loadgep_" + inputs[i]->getName());
     } else
       RewriteVal = &*AI++;
 
@@ -436,13 +436,13 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
       params.push_back(*i);
 
   // Create allocas for the outputs
+  IRBuilder<> AllocaBuilder(codeReplacer->getParent()->front().front());
   for (ValueSet::iterator i = outputs.begin(), e = outputs.end(); i != e; ++i) {
     if (AggregateArgs) {
       StructValues.push_back(*i);
     } else {
       AllocaInst *alloca =
-          new AllocaInst((*i)->getType(), nullptr, (*i)->getName() + ".loc",
-                         &codeReplacer->getParent()->front().front());
+          AllocaBuilder.CreateAlloca((*i)->getType(), nullptr, (*i)->getName() + ".loc");
       ReloadOutputs.push_back(alloca);
       params.push_back(alloca);
     }
@@ -458,8 +458,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
 
     // Allocate a struct at the beginning of this function
     StructArgTy = StructType::get(newFunction->getContext(), ArgTypes);
-    Struct = new AllocaInst(StructArgTy, nullptr, "structArg",
-                            &codeReplacer->getParent()->front().front());
+    Struct = AllocaBuilder.CreateAlloca(StructArgTy, nullptr, "structArg");
     params.push_back(Struct);
 
     for (unsigned i = 0, e = inputs.size(); i != e; ++i) {
@@ -498,7 +497,8 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
     } else {
       Output = ReloadOutputs[i];
     }
-    LoadInst *load = new LoadInst(Output, outputs[i]->getName()+".reload");
+    LoadInst *load = new LoadInst(Output);
+    load.SetName(outputs[i]->getName()+".reload");
     Reloads.push_back(load);
     codeReplacer->getInstList().push_back(load);
     std::vector<User*> Users(outputs[i]->user_begin(), outputs[i]->user_end());

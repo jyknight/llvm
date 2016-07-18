@@ -1483,7 +1483,7 @@ Instruction *InstCombiner::visitCallInst(CallInst &CI) {
     // Turn PPC VSX loads into normal loads.
     Value *Ptr = Builder->CreateBitCast(II->getArgOperand(0),
                                         PointerType::getUnqual(II->getType()));
-    return new LoadInst(Ptr, Twine(""), false, 1);
+    return new LoadInst(Ptr, false, 1);
   }
   case Intrinsic::ppc_altivec_stvx:
   case Intrinsic::ppc_altivec_stvxl:

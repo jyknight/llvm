@@ -1060,6 +1060,11 @@ public:
                            const Twine &Name = "") {
     return Insert(new AllocaInst(Ty, ArraySize), Name);
   }
+  AllocaInst *CreateAlloca(Type *Ty, Value *ArraySize, unsigned Align,
+                           const Twine &Name = "") {
+    return Insert(new AllocaInst(Ty, ArraySize, Align), Name);
+  }
+
   // \brief Provided to resolve 'CreateLoad(Ptr, "...")' correctly, instead of
   // converting the string to 'bool' for the isVolatile parameter.
   LoadInst *CreateLoad(Value *Ptr, const char *Name) {
@@ -1072,7 +1077,7 @@ public:
     return Insert(new LoadInst(Ty, Ptr), Name);
   }
   LoadInst *CreateLoad(Value *Ptr, bool isVolatile, const Twine &Name = "") {
-    return Insert(new LoadInst(Ptr, nullptr, isVolatile), Name);
+    return Insert(new LoadInst(Ptr, isVolatile), Name);
   }
   StoreInst *CreateStore(Value *Val, Value *Ptr, bool isVolatile = false) {
     return Insert(new StoreInst(Val, Ptr, isVolatile));

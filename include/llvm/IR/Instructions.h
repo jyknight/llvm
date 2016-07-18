@@ -57,19 +57,7 @@ protected:
   AllocaInst *cloneImpl() const;
 
 public:
-  explicit AllocaInst(Type *Ty, Value *ArraySize = nullptr,
-                      const Twine &Name = "",
-                      Instruction *InsertBefore = nullptr);
-  AllocaInst(Type *Ty, Value *ArraySize,
-             const Twine &Name, BasicBlock *InsertAtEnd);
-
-  AllocaInst(Type *Ty, const Twine &Name, Instruction *InsertBefore = nullptr);
-  AllocaInst(Type *Ty, const Twine &Name, BasicBlock *InsertAtEnd);
-
-  AllocaInst(Type *Ty, Value *ArraySize, unsigned Align,
-             const Twine &Name = "", Instruction *InsertBefore = nullptr);
-  AllocaInst(Type *Ty, Value *ArraySize, unsigned Align,
-             const Twine &Name, BasicBlock *InsertAtEnd);
+  explicit AllocaInst(Type *Ty, Value *ArraySize = nullptr, unsigned Align = 0);
 
   // Out of line virtual method, so the vtable, etc. has a home.
   ~AllocaInst() override;
@@ -170,49 +158,21 @@ protected:
   LoadInst *cloneImpl() const;
 
 public:
-  LoadInst(Value *Ptr, const Twine &NameStr, Instruction *InsertBefore);
-  LoadInst(Value *Ptr, const Twine &NameStr, BasicBlock *InsertAtEnd);
-  LoadInst(Type *Ty, Value *Ptr, const Twine &NameStr, bool isVolatile = false,
-           Instruction *InsertBefore = nullptr);
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile = false,
-           Instruction *InsertBefore = nullptr)
-      : LoadInst(cast<PointerType>(Ptr->getType())->getElementType(), Ptr,
-                 NameStr, isVolatile, InsertBefore) {}
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
-           BasicBlock *InsertAtEnd);
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile, unsigned Align,
-           Instruction *InsertBefore = nullptr)
-      : LoadInst(cast<PointerType>(Ptr->getType())->getElementType(), Ptr,
-                 NameStr, isVolatile, Align, InsertBefore) {}
-  LoadInst(Type *Ty, Value *Ptr, const Twine &NameStr, bool isVolatile,
-           unsigned Align, Instruction *InsertBefore = nullptr);
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
-           unsigned Align, BasicBlock *InsertAtEnd);
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile, unsigned Align,
-           AtomicOrdering Order, SynchronizationScope SynchScope = CrossThread,
-           Instruction *InsertBefore = nullptr)
-      : LoadInst(cast<PointerType>(Ptr->getType())->getElementType(), Ptr,
-                 NameStr, isVolatile, Align, Order, SynchScope, InsertBefore) {}
-  LoadInst(Type *Ty, Value *Ptr, const Twine &NameStr, bool isVolatile,
-           unsigned Align, AtomicOrdering Order,
-           SynchronizationScope SynchScope = CrossThread,
-           Instruction *InsertBefore = nullptr);
-  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile,
-           unsigned Align, AtomicOrdering Order,
-           SynchronizationScope SynchScope,
-           BasicBlock *InsertAtEnd);
+  LoadInst(Type *Ty, Value *Ptr, const char *NameStr, bool isVolatile = false) = delete;
+  LoadInst(Type *Ty, Value *Ptr, const Twine &NameStr, bool isVolatile = false, unsigned Align = 0,
+           AtomicOrdering Order = AtomicOrdering::NotAtomic,
+           SynchronizationScope SynchScope = CrossThread) = delete;
+  LoadInst(Value *Ptr, const char *NameStr, bool isVolatile = false) = delete;
+  LoadInst(Value *Ptr, const Twine &NameStr, bool isVolatile = false, unsigned Align = 0,
+           AtomicOrdering Order = AtomicOrdering::NotAtomic,
+           SynchronizationScope SynchScope = CrossThread) = delete;
 
-  LoadInst(Value *Ptr, const char *NameStr, Instruction *InsertBefore);
-  LoadInst(Value *Ptr, const char *NameStr, BasicBlock *InsertAtEnd);
-  LoadInst(Type *Ty, Value *Ptr, const char *NameStr = nullptr,
-           bool isVolatile = false, Instruction *InsertBefore = nullptr);
-  explicit LoadInst(Value *Ptr, const char *NameStr = nullptr,
-                    bool isVolatile = false,
-                    Instruction *InsertBefore = nullptr)
-      : LoadInst(cast<PointerType>(Ptr->getType())->getElementType(), Ptr,
-                 NameStr, isVolatile, InsertBefore) {}
-  LoadInst(Value *Ptr, const char *NameStr, bool isVolatile,
-           BasicBlock *InsertAtEnd);
+  LoadInst(Value *Ptr, bool isVolatile = false, unsigned Align = 0, AtomicOrdering Order = AtomicOrdering::NotAtomic,
+           SynchronizationScope SynchScope = CrossThread) :
+      LoadInst(cast<PointerType>(Ptr->getType())->getElementType(), Ptr, isVolatile, Align, Order, SynchScope) {}
+
+  LoadInst(Type *Ty, Value *Ptr, bool isVolatile = false, unsigned Align = 0, AtomicOrdering Order = AtomicOrdering::NotAtomic,
+           SynchronizationScope SynchScope = CrossThread);
 
   /// isVolatile - Return true if this is a load from a volatile memory
   /// location.

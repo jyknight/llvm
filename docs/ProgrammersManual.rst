@@ -244,7 +244,7 @@ instruction with a suffix, for example:
 
 .. code-block:: c++
 
-    New = CmpInst::Create(..., SO->getName() + ".cmp");
+    New = Builder.CreateICmp(..., SO->getName() + ".cmp");
 
 The ``Twine`` class is effectively a lightweight `rope
 <http://en.wikipedia.org/wiki/Rope_(computer_science)>`_ which points to
@@ -2079,11 +2079,63 @@ describes some of the common methods for doing so and gives example code.
 Creating and inserting new ``Instruction``\ s
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-*Instantiating Instructions*
+*Using ``IRBuilder``*
 
-Creation of ``Instruction``\ s is straight-forward: simply call the constructor
-for the kind of instruction to instantiate and provide the necessary parameters.
-For example, an ``AllocaInst`` only *requires* a (const-ptr-to) ``Type``.  Thus:
+Typically, ``Instruction``\ s are created, named, and inserted by
+using the ``IRBuilder`` class.
+
+``IRBuilder`` is a convenience class that can be used to add
+several instructions to the end of a ``BasicBlock`` or before a particular
+``Instruction``. It also supports constant folding and renaming named
+registers (see ``IRBuilder``'s template arguments).
+
+It is very useful to name the values of instructions when you're able
+to, as this facilitates the debugging of your transformations.  If you
+end up looking at generated LLVM machine code, you definitely want to
+have logical names associated with the results of instructions!  By
+supplying a name, you associate a logical name with the result of the
+instruction's execution at run time.  For example, say that I'm
+writing a transformation that dynamically allocates space for an
+integer on the stack, and that integer is going to be used as some
+kind of index by some other code.  To accomplish this, simply pass the
+name as the (optional) ``Name`` argument to the ``IRBuilder``
+``Create*`` functions.
+
+The example below demonstrates a very simple use of the ``IRBuilder`` where
+three instructions are inserted before the instruction ``pi``. The first two
+instructions are Call instructions and third instruction multiplies the return
+value of the two calls. Each is given a name.
+
+.. code-block:: c++
+
+  Instruction *pi = ...;
+  IRBuilder<> Builder(pi);
+  CallInst* callOne = Builder.CreateCall(..., "call_one");
+  CallInst* callTwo = Builder.CreateCall(..., "call_two");
+  Value* result = Builder.CreateMul(callOne, callTwo, "final_result");
+
+The example below is similar to the above example except that the created
+``IRBuilder`` inserts instructions at the end of the ``BasicBlock`` ``pb``.
+
+.. code-block:: c++
+
+  BasicBlock *pb = ...;
+  IRBuilder<> Builder(pb);
+  CallInst* callOne = Builder.CreateCall(..., "call_one");
+  CallInst* callTwo = Builder.CreateCall(..., "call_two");
+  Value* result = Builder.CreateMul(callOne, callTwo, "final_result");
+
+See :doc:`tutorial/LangImpl3` for a practical use of the ``IRBuilder``.
+
+*Manually*
+
+While ``IRBuilder`` is usually the way to go, it's also possible to
+create and insert ``Instruction``\ s manually.
+
+To create one, you may simply call the constructor for the kind of
+instruction to instantiate and provide the necessary parameters.  For
+example, an ``AllocaInst`` only *requires* a (const-ptr-to) ``Type``.
+Thus:
 
 .. code-block:: c++
 
@@ -2096,37 +2148,9 @@ instruction, so refer to the `doxygen documentation for the subclass of
 Instruction <http://llvm.org/doxygen/classllvm_1_1Instruction.html>`_ that
 you're interested in instantiating.
 
-*Naming values*
-
-It is very useful to name the values of instructions when you're able to, as
-this facilitates the debugging of your transformations.  If you end up looking
-at generated LLVM machine code, you definitely want to have logical names
-associated with the results of instructions!  By supplying a value for the
-``Name`` (default) parameter of the ``Instruction`` constructor, you associate a
-logical name with the result of the instruction's execution at run time.  For
-example, say that I'm writing a transformation that dynamically allocates space
-for an integer on the stack, and that integer is going to be used as some kind
-of index by some other code.  To accomplish this, I place an ``AllocaInst`` at
-the first point in the first ``BasicBlock`` of some ``Function``, and I'm
-intending to use it within the same ``Function``.  I might do:
-
-.. code-block:: c++
-
-  AllocaInst* pa = new AllocaInst(Type::Int32Ty, 0, "indexLoc");
-
-where ``indexLoc`` is now the logical name of the instruction's execution value,
-which is a pointer to an integer on the run time stack.
-
-*Inserting instructions*
-
-There are essentially three ways to insert an ``Instruction`` into an existing
-sequence of instructions that form a ``BasicBlock``:
-
-* Insertion into an explicit instruction list
-
-  Given a ``BasicBlock* pb``, an ``Instruction* pi`` within that ``BasicBlock``,
-  and a newly-created instruction we wish to insert before ``*pi``, we do the
-  following:
+Given a ``BasicBlock* pb``, an ``Instruction* pi`` within that ``BasicBlock``,
+and a newly-created instruction we wish to insert before ``*pi``, we can then do
+the following:
 
   .. code-block:: c++
 
@@ -2136,34 +2160,10 @@ sequence of instructions that form a ``BasicBlock``:
 
       pb->getInstList().insert(pi, newInst); // Inserts newInst before pi in pb
 
-  Appending to the end of a ``BasicBlock`` is so common that the ``Instruction``
-  class and ``Instruction``-derived classes provide constructors which take a
-  pointer to a ``BasicBlock`` to be appended to.  For example code that looked
-  like:
-
-  .. code-block:: c++
-
-    BasicBlock *pb = ...;
-    Instruction *newInst = new Instruction(...);
-
-    pb->getInstList().push_back(newInst); // Appends newInst to pb
-
-  becomes:
-
-  .. code-block:: c++
-
-    BasicBlock *pb = ...;
-    Instruction *newInst = new Instruction(..., pb);
-
-  which is much cleaner, especially if you are creating long instruction
-  streams.
-
-* Insertion into an implicit instruction list
-
-  ``Instruction`` instances that are already in ``BasicBlock``\ s are implicitly
-  associated with an existing instruction list: the instruction list of the
-  enclosing basic block.  Thus, we could have accomplished the same thing as the
-  above code without being given a ``BasicBlock`` by doing:
+``Instruction`` instances that are already in ``BasicBlock``\ s are implicitly
+associated with an existing instruction list: the instruction list of the
+enclosing basic block.  Thus, we could have accomplished the same thing as the
+above code without being given a ``BasicBlock`` by doing:
 
   .. code-block:: c++
 
@@ -2171,58 +2171,6 @@ sequence of instructions that form a ``BasicBlock``:
     Instruction *newInst = new Instruction(...);
 
     pi->getParent()->getInstList().insert(pi, newInst);
-
-  In fact, this sequence of steps occurs so frequently that the ``Instruction``
-  class and ``Instruction``-derived classes provide constructors which take (as
-  a default parameter) a pointer to an ``Instruction`` which the newly-created
-  ``Instruction`` should precede.  That is, ``Instruction`` constructors are
-  capable of inserting the newly-created instance into the ``BasicBlock`` of a
-  provided instruction, immediately before that instruction.  Using an
-  ``Instruction`` constructor with a ``insertBefore`` (default) parameter, the
-  above code becomes:
-
-  .. code-block:: c++
-
-    Instruction* pi = ...;
-    Instruction* newInst = new Instruction(..., pi);
-
-  which is much cleaner, especially if you're creating a lot of instructions and
-  adding them to ``BasicBlock``\ s.
-
-* Insertion using an instance of ``IRBuilder``
-
-  Inserting several ``Instruction``\ s can be quite laborious using the previous
-  methods. The ``IRBuilder`` is a convenience class that can be used to add
-  several instructions to the end of a ``BasicBlock`` or before a particular
-  ``Instruction``. It also supports constant folding and renaming named
-  registers (see ``IRBuilder``'s template arguments).
-
-  The example below demonstrates a very simple use of the ``IRBuilder`` where
-  three instructions are inserted before the instruction ``pi``. The first two
-  instructions are Call instructions and third instruction multiplies the return
-  value of the two calls.
-
-  .. code-block:: c++
-
-    Instruction *pi = ...;
-    IRBuilder<> Builder(pi);
-    CallInst* callOne = Builder.CreateCall(...);
-    CallInst* callTwo = Builder.CreateCall(...);
-    Value* result = Builder.CreateMul(callOne, callTwo);
-
-  The example below is similar to the above example except that the created
-  ``IRBuilder`` inserts instructions at the end of the ``BasicBlock`` ``pb``.
-
-  .. code-block:: c++
-
-    BasicBlock *pb = ...;
-    IRBuilder<> Builder(pb);
-    CallInst* callOne = Builder.CreateCall(...);
-    CallInst* callTwo = Builder.CreateCall(...);
-    Value* result = Builder.CreateMul(callOne, callTwo);
-
-  See :doc:`tutorial/LangImpl3` for a practical use of the ``IRBuilder``.
-
 
 .. _schanges_deleting:
 
@@ -2289,7 +2237,7 @@ Deleting Instructions
     BasicBlock::iterator ii(instToReplace);
 
     ReplaceInstWithInst(instToReplace->getParent()->getInstList(), ii,
-                        new AllocaInst(Type::Int32Ty, 0, "ptrToReplacedInt"));
+                        new AllocaInst(Type::Int32Ty));
 
 
 Replacing multiple uses of Users and Values
@@ -2358,18 +2306,11 @@ This section describes the interaction of the LLVM APIs with multithreading,
 both on the part of client applications, and in the JIT, in the hosted
 application.
 
-Note that LLVM's support for multithreading is still relatively young.  Up
-through version 2.5, the execution of threaded hosted applications was
-supported, but not threaded client access to the APIs.  While this use case is
-now supported, clients *must* adhere to the guidelines specified below to ensure
-proper operation in multithreaded mode.
-
 Note that, on Unix-like platforms, LLVM requires the presence of GCC's atomic
 intrinsics in order to support threaded operation.  If you need a
 multhreading-capable LLVM on a platform without a suitably modern system
-compiler, consider compiling LLVM and LLVM-GCC in single-threaded mode, and
-using the resultant compiler to build a copy of LLVM with multithreading
-support.
+compiler, consider compiling LLVM and Clang in single-threaded mode, and using
+the resultant compiler to build a copy of LLVM with multithreading support.
 
 .. _shutdown:
 
@@ -2389,6 +2330,9 @@ initialization of static resources, such as the global type tables.  In a
 single-threaded environment, it implements a simple lazy initialization scheme.
 When LLVM is compiled with support for multi-threading, however, it uses
 double-checked locking to implement thread-safe lazy initialization.
+
+Note that a function-local ``static`` ought to also guarantee thread-safe static
+initialization, but Microsoft didn't implement it until Visual Studio 2015.
 
 .. _llvmcontext:
 

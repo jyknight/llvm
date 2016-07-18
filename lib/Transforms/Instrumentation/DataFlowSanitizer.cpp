@@ -1084,7 +1084,7 @@ Value *DFSanFunction::loadShadow(Value *Addr, uint64_t Size, uint64_t Align,
   case 0:
     return DFS.ZeroShadow;
   case 1: {
-    LoadInst *LI = new LoadInst(ShadowAddr, "", Pos);
+    LoadInst *LI = new LoadInst(ShadowAddr, Pos);
     LI->setAlignment(ShadowAlign);
     return LI;
   }
@@ -1413,6 +1413,7 @@ void DFSanVisitor::visitCallSite(CallSite CS) {
     return;
 
   IRBuilder<> IRB(CS.getInstruction());
+  IRBuilder<> AllocaBuilder(&DFSF.F->getEntryBlock().front());
 
   DenseMap<Value *, Function *>::iterator i =
       DFSF.DFS.UnwrappedFnMap.find(CS.getCalledValue());
@@ -1486,8 +1487,8 @@ void DFSanVisitor::visitCallSite(CallSite CS) {
         if (FT->isVarArg()) {
           auto *LabelVATy = ArrayType::get(DFSF.DFS.ShadowTy,
                                            CS.arg_size() - FT->getNumParams());
-          auto *LabelVAAlloca = new AllocaInst(
-              LabelVATy, "labelva", &DFSF.F->getEntryBlock().front());
+          auto *LabelVAAlloca = AllocaBuilder.CreateAllocaInst(
+              LabelVATy, "labelva");
 
           for (unsigned n = 0; i != CS.arg_end(); ++i, ++n) {
             auto LabelVAPtr = IRB.CreateStructGEP(LabelVATy, LabelVAAlloca, n);
@@ -1498,11 +1499,8 @@ void DFSanVisitor::visitCallSite(CallSite CS) {
         }
 
         if (!FT->getReturnType()->isVoidTy()) {
-          if (!DFSF.LabelReturnAlloca) {
-            DFSF.LabelReturnAlloca =
-                new AllocaInst(DFSF.DFS.ShadowTy, "labelreturn",
-                               &DFSF.F->getEntryBlock().front());
-          }
+          if (!DFSF.LabelReturnAlloca)
+            DFSF.LabelReturnAlloca = AllocaBuilder.CreateAlloca(DFSF.DFS.ShadowTy, "labelreturn");
           Args.push_back(DFSF.LabelReturnAlloca);
         }
 
@@ -1579,8 +1577,7 @@ void DFSanVisitor::visitCallSite(CallSite CS) {
     if (FT->isVarArg()) {
       unsigned VarArgSize = CS.arg_size() - FT->getNumParams();
       ArrayType *VarArgArrayTy = ArrayType::get(DFSF.DFS.ShadowTy, VarArgSize);
-      AllocaInst *VarArgShadow =
-          new AllocaInst(VarArgArrayTy, "", &DFSF.F->getEntryBlock().front());
+      AllocaInst *VarArgShadow = AllocaBuilder.CreateAlloca(VarArgArrayTy);
       Args.push_back(IRB.CreateConstGEP2_32(VarArgArrayTy, VarArgShadow, 0, 0));
       for (unsigned n = 0; i != e; ++i, ++n) {
         IRB.CreateStore(

@@ -206,12 +206,11 @@ bool LoadCombine::combineLoads(SmallVectorImpl<LoadPOPPair> &Loads) {
       Builder->CreatePointerCast(Loads[0].POP.Pointer,
                                  Builder->getInt8PtrTy(AddressSpace)),
       Loads[0].POP.Offset);
-  LoadInst *NewLoad = new LoadInst(
+  LoadInst *NewLoad = Builder->CreateAlignedLoad(
       Builder->CreatePointerCast(
           Ptr, PointerType::get(IntegerType::get(Ptr->getContext(), TotalSize),
                                 Ptr->getType()->getPointerAddressSpace())),
-      Twine(Loads[0].Load->getName()) + ".combined", false,
-      Loads[0].Load->getAlignment(), FirstLP.Load);
+      Loads[0].Load->getAlignment(), Loads[0].Load->getName() + ".combined");
 
   for (const auto &L : Loads) {
     Builder->SetInsertPoint(L.Load);
